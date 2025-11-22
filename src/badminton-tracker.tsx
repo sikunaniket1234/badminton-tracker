@@ -268,21 +268,22 @@ export default function BadmintonTracker() {
   // Login Screen
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+      <div className="min-h-screen bg-gradient-to-br from-green-400 to-blue-500 dark:from-green-900 dark:to-blue-900 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 max-w-md w-full">
           <div className="text-center mb-8">
             <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-            <h1 className="text-3xl font-bold text-gray-800">Badminton Tracker</h1>
-            <p className="text-gray-600 mt-2">Track fines & scores</p>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Badminton Tracker</h1>
+            <p className="text-gray-600 dark:text-gray-300 mt-2">Track fines & scores</p>
+            <p className="text-gray-600 dark:text-gray-300 mt-2">Track fines & scores</p>
           </div>
           
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Username</label>
               <select
                 value={loginUsername}
                 onChange={(e) => setLoginUsername(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               >
                 <option value="">Select User</option>
@@ -292,12 +293,12 @@ export default function BadmintonTracker() {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Password</label>
               <input
                 type="password"
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter password"
                 required
               />
@@ -305,7 +306,7 @@ export default function BadmintonTracker() {
 
             <button
               type="submit"
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition duration-200 shadow-lg"
+              className="w-full bg-blue-50 dark:bg-blue-900/200 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition duration-200 shadow-lg"
             >
               Login
             </button>
@@ -321,9 +322,9 @@ export default function BadmintonTracker() {
 
   // Main App
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 dark:bg-slate-900">
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-500 to-blue-500 text-white p-4 shadow-lg">
+      <div className="bg-gradient-to-r from-green-500 to-blue-500 dark:from-green-700 dark:to-blue-700 text-white p-4 shadow-lg">
         <div className="max-w-4xl mx-auto">
           <div className="flex justify-between items-center mb-2">
             <div>
@@ -332,7 +333,7 @@ export default function BadmintonTracker() {
             </div>
             <button
               onClick={handleLogout}
-              className="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg text-sm transition"
+              className="bg-white dark:bg-slate-700 bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg text-sm transition"
             >
               Logout
             </button>
@@ -345,12 +346,12 @@ export default function BadmintonTracker() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white border-b sticky top-0 z-10">
+      <div className="bg-white dark:bg-slate-800 border-b dark:border-slate-700 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto flex">
           <button
             onClick={() => setActiveTab('home')}
             className={`flex-1 py-4 text-center font-medium transition ${
-              activeTab === 'home' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600'
+              activeTab === 'home' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600' : 'text-gray-600 dark:text-gray-400'
             }`}
           >
             <Trophy className="w-5 h-5 mx-auto mb-1" />
@@ -359,7 +360,7 @@ export default function BadmintonTracker() {
           <button
             onClick={() => setActiveTab('stats')}
             className={`flex-1 py-4 text-center font-medium transition ${
-              activeTab === 'stats' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600'
+              activeTab === 'stats' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600' : 'text-gray-600 dark:text-gray-400'
             }`}
           >
             <Users className="w-5 h-5 mx-auto mb-1" />
@@ -368,7 +369,7 @@ export default function BadmintonTracker() {
           <button
             onClick={() => setActiveTab('history')}
             className={`flex-1 py-4 text-center font-medium transition ${
-              activeTab === 'history' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600'
+              activeTab === 'history' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600' : 'text-gray-600 dark:text-gray-400'
             }`}
           >
             <History className="w-5 h-5 mx-auto mb-1" />
@@ -377,7 +378,7 @@ export default function BadmintonTracker() {
           <button
             onClick={() => setActiveTab('settlements')}
             className={`flex-1 py-4 text-center font-medium transition ${
-              activeTab === 'settlements' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600'
+              activeTab === 'settlements' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 dark:text-gray-300'
             }`}
           >
             <CheckCircle className="w-5 h-5 mx-auto mb-1" />
@@ -391,15 +392,15 @@ export default function BadmintonTracker() {
         {activeTab === 'home' && (
           <div className="space-y-4">
             {/* Fine Balance Card */}
-            <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center">
                   <IndianRupee className="w-5 h-5 mr-2" />
                   Fine Balance
                 </h2>
                 <button
                   onClick={() => setShowSettlement(true)}
-                  className="text-sm bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-lg"
+                  className="text-sm bg-green-50 dark:bg-green-900/200 hover:bg-green-600 text-white px-3 py-1 rounded-lg"
                 >
                   Settle
                 </button>
@@ -407,21 +408,21 @@ export default function BadmintonTracker() {
               
               <div className="text-center">
                 {fineBalance === 0 ? (
-                  <p className="text-gray-600 text-lg">All settled! 🎉</p>
+                  <p className="text-gray-600 dark:text-gray-300 text-lg">All settled! 🎉</p>
                 ) : fineBalance > 0 ? (
                   <div>
-                    <p className="text-gray-600 mb-2">You owe {users[otherUser].displayName}</p>
+                    <p className="text-gray-600 dark:text-gray-300 mb-2">You owe {users[otherUser].displayName}</p>
                     <p className="text-4xl font-bold text-red-600">₹{Math.abs(fineBalance)}</p>
                   </div>
                 ) : (
                   <div>
-                    <p className="text-gray-600 mb-2">{users[otherUser].displayName} owes you</p>
+                    <p className="text-gray-600 dark:text-gray-300 mb-2">{users[otherUser].displayName} owes you</p>
                     <p className="text-4xl font-bold text-green-600">₹{Math.abs(fineBalance)}</p>
                   </div>
                 )}
               </div>
               
-              <div className="mt-4 pt-4 border-t flex justify-between text-sm text-gray-600">
+              <div className="mt-4 pt-4 border-t flex justify-between text-sm text-gray-600 dark:text-gray-300">
                 <div>Your fines: ₹{fines[currentUser]}</div>
                 <div>{users[otherUser].displayName}'s fines: ₹{fines[otherUser]}</div>
               </div>
@@ -440,14 +441,14 @@ export default function BadmintonTracker() {
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => setShowNewMatch(true)}
-                className="bg-blue-500 hover:bg-blue-600 text-white rounded-xl p-6 shadow-md transition flex flex-col items-center"
+                className="bg-blue-50 dark:bg-blue-900/200 hover:bg-blue-600 text-white rounded-xl p-6 shadow-md transition flex flex-col items-center"
               >
                 <Trophy className="w-8 h-8 mb-2" />
                 <span className="font-semibold">New Match</span>
               </button>
               <button
                 onClick={() => setShowNewFine(true)}
-                className="bg-red-500 hover:bg-red-600 text-white rounded-xl p-6 shadow-md transition flex flex-col items-center"
+                className="bg-red-50 dark:bg-red-900/200 hover:bg-red-600 text-white rounded-xl p-6 shadow-md transition flex flex-col items-center"
               >
                 <IndianRupee className="w-8 h-8 mb-2" />
                 <span className="font-semibold">Add Fine</span>
@@ -455,8 +456,8 @@ export default function BadmintonTracker() {
             </div>
 
             {/* Recent Activity */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <h3 className="font-bold text-lg mb-4 text-gray-800">Recent Activity</h3>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+              <h3 className="font-bold text-lg mb-4 text-gray-800 dark:text-white">Recent Activity</h3>
               {matches.slice(0, 5).length === 0 ? (
                 <p className="text-gray-500 text-center py-4">No activity yet</p>
               ) : (
@@ -468,7 +469,7 @@ export default function BadmintonTracker() {
                           <p className="font-semibold">
                             {match.winner === 'aniketnayak' ? '🏆 Aniket' : '🏆 Sourav'} won
                           </p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
                             Score: {match.scores?.aniketnayak} - {match.scores?.souravssk}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
@@ -480,7 +481,7 @@ export default function BadmintonTracker() {
                           <p className="font-semibold">
                             💰 {match.player && users[match.player as 'aniketnayak' | 'souravssk'].displayName} - Fine
                           </p>
-                          <p className="text-sm text-gray-600">₹{match.amount} - {match.reason}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">₹{match.amount} - {match.reason}</p>
                           <p className="text-xs text-gray-400 mt-1">
                             {new Date(match.date).toLocaleString()}
                           </p>
@@ -499,51 +500,51 @@ export default function BadmintonTracker() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               {/* Aniket Stats */}
-              <div className="bg-white rounded-xl shadow-md p-6">
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
                 <h3 className="font-bold text-lg mb-4 text-blue-600">Aniket</h3>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm text-gray-600">Wins</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Wins</p>
                     <p className="text-2xl font-bold">{stats.aniketnayak.wins}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Losses</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Losses</p>
                     <p className="text-2xl font-bold">{stats.aniketnayak.losses}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Total Points</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Total Points</p>
                     <p className="text-xl font-bold">{stats.aniketnayak.totalPoints}</p>
                   </div>
                 </div>
               </div>
 
               {/* Sourav Stats */}
-              <div className="bg-white rounded-xl shadow-md p-6">
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
                 <h3 className="font-bold text-lg mb-4 text-green-600">Sourav</h3>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm text-gray-600">Wins</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Wins</p>
                     <p className="text-2xl font-bold">{stats.souravssk.wins}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Losses</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Losses</p>
                     <p className="text-2xl font-bold">{stats.souravssk.losses}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Total Points</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Total Points</p>
                     <p className="text-xl font-bold">{stats.souravssk.totalPoints}</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
               <h3 className="font-bold text-lg mb-4">Head to Head</h3>
               <div className="text-center">
-                <p className="text-4xl font-bold text-gray-800">
+                <p className="text-4xl font-bold text-gray-800 dark:text-white">
                   {stats.aniketnayak.wins} - {stats.souravssk.wins}
                 </p>
-                <p className="text-gray-600 mt-2">Total matches: {stats.aniketnayak.wins + stats.souravssk.wins}</p>
+                <p className="text-gray-600 dark:text-gray-300 mt-2">Total matches: {stats.aniketnayak.wins + stats.souravssk.wins}</p>
               </div>
             </div>
           </div>
@@ -551,20 +552,20 @@ export default function BadmintonTracker() {
 
         {/* History Tab */}
         {activeTab === 'history' && (
-          <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
             <h3 className="font-bold text-lg mb-4">Full History</h3>
             {matches.length === 0 ? (
               <p className="text-gray-500 text-center py-8">No history yet</p>
             ) : (
               <div className="space-y-3">
                 {matches.map(match => (
-                  <div key={match.id} className="border-l-4 border-gray-300 pl-4 py-2 hover:border-blue-500 transition">
+                  <div key={match.id} className="border-l-4 border-gray-300 dark:border-slate-600 pl-4 py-2 hover:border-blue-500 transition">
                     {match.type === 'match' ? (
                       <div>
                         <p className="font-semibold">
                           {match.winner === 'aniketnayak' ? '🏆 Aniket' : '🏆 Sourav'} won
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
                           Score: {match.scores?.aniketnayak} - {match.scores?.souravssk}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">
@@ -576,7 +577,7 @@ export default function BadmintonTracker() {
                         <p className="font-semibold">
                           💰 {match.player && users[match.player as 'aniketnayak' | 'souravssk'].displayName} - Fine
                         </p>
-                        <p className="text-sm text-gray-600">₹{match.amount} - {match.reason}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">₹{match.amount} - {match.reason}</p>
                         <p className="text-xs text-gray-400 mt-1">
                           {new Date(match.date).toLocaleString()}
                         </p>
@@ -591,14 +592,14 @@ export default function BadmintonTracker() {
 
         {/* Settlements Tab */}
         {activeTab === 'settlements' && (
-          <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
             <h3 className="font-bold text-lg mb-4">Settlement History</h3>
             {settlements.length === 0 ? (
               <p className="text-gray-500 text-center py-8">No settlements yet</p>
             ) : (
               <div className="space-y-4">
                 {settlements.map(settlement => (
-                  <div key={settlement.id} className="border rounded-lg p-4 bg-green-50">
+                  <div key={settlement.id} className="border rounded-lg p-4 bg-green-50 dark:bg-green-900/20">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center">
                         <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
@@ -614,7 +615,7 @@ export default function BadmintonTracker() {
                         <span className="font-medium">{users[settlement.receiver as 'aniketnayak' | 'souravssk'].displayName}</span>
                       </p>
                       <p className="text-lg font-bold text-green-600">₹{settlement.balance}</p>
-                      <p className="text-gray-600">
+                      <p className="text-gray-600 dark:text-gray-300">
                         Transaction ID: <span className="font-mono text-xs">{settlement.transactionId}</span>
                       </p>
                       <div className="mt-2 pt-2 border-t text-xs text-gray-500">
@@ -633,7 +634,7 @@ export default function BadmintonTracker() {
       {/* New Match Modal */}
       {showNewMatch && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-md w-full">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">Record Match Score</h3>
               <button onClick={() => setShowNewMatch(false)}>
@@ -666,7 +667,7 @@ export default function BadmintonTracker() {
 
               <button
                 onClick={addMatch}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition"
+                className="w-full bg-blue-50 dark:bg-blue-900/200 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition"
               >
                 Save Match
               </button>
@@ -678,7 +679,7 @@ export default function BadmintonTracker() {
       {/* New Fine Modal */}
       {showNewFine && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-md w-full">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">Add Fine</h3>
               <button onClick={() => setShowNewFine(false)}>
@@ -711,7 +712,7 @@ export default function BadmintonTracker() {
 
               <button
                 onClick={addFine}
-                className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 rounded-lg transition"
+                className="w-full bg-red-50 dark:bg-red-900/200 hover:bg-red-600 text-white font-semibold py-3 rounded-lg transition"
               >
                 Add Fine to My Account
               </button>
@@ -723,7 +724,7 @@ export default function BadmintonTracker() {
       {/* Settlement Modal */}
       {showSettlement && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-md w-full">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">Settle Fines</h3>
               <button onClick={() => setShowSettlement(false)}>
@@ -733,20 +734,20 @@ export default function BadmintonTracker() {
             
             {fineBalance === 0 ? (
               <div className="text-center py-6">
-                <p className="text-gray-600 text-lg">No fines to settle! 🎉</p>
+                <p className="text-gray-600 dark:text-gray-300 text-lg">No fines to settle! 🎉</p>
                 <button
                   onClick={() => setShowSettlement(false)}
-                  className="mt-4 bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg"
+                  className="mt-4 bg-gray-50 dark:bg-slate-7000 hover:bg-gray-600 text-white px-6 py-2 rounded-lg"
                 >
                   Close
                 </button>
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-2">Settlement Amount</p>
-                  <p className="text-3xl font-bold text-gray-800">₹{Math.abs(fineBalance)}</p>
-                  <p className="text-sm text-gray-600 mt-2">
+                <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">Settlement Amount</p>
+                  <p className="text-3xl font-bold text-gray-800 dark:text-white">₹{Math.abs(fineBalance)}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
                     {fineBalance > 0 
                       ? `${currentUser && users[currentUser as 'aniketnayak' | 'souravssk'].displayName} pays ${users[otherUser as 'aniketnayak' | 'souravssk'].displayName}`
                       : `${users[otherUser as 'aniketnayak' | 'souravssk'].displayName} pays ${currentUser && users[currentUser as 'aniketnayak' | 'souravssk'].displayName}`
@@ -768,7 +769,7 @@ export default function BadmintonTracker() {
 
                 <button
                   onClick={handleSettlement}
-                  className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-lg transition"
+                  className="w-full bg-green-50 dark:bg-green-900/200 hover:bg-green-600 text-white font-semibold py-3 rounded-lg transition"
                 >
                   Confirm Settlement
                 </button>
@@ -781,7 +782,7 @@ export default function BadmintonTracker() {
       {/* Monthly Report Modal */}
       {showMonthlyReport && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full my-8">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-2xl w-full my-8">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">Monthly Report</h3>
               <button onClick={() => setShowMonthlyReport(false)}>
@@ -810,26 +811,26 @@ export default function BadmintonTracker() {
               return (
                 <div className="space-y-6">
                   <div className="text-center">
-                    <h4 className="text-2xl font-bold text-gray-800 mb-2">{monthName}</h4>
+                    <h4 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{monthName}</h4>
                   </div>
 
                   {/* Fine Summary */}
-                  <div className="bg-red-50 rounded-lg p-4">
+                  <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
                     <h5 className="font-bold text-lg mb-3 text-red-800">Fine Summary</h5>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-gray-600">Aniket's Fines</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Aniket's Fines</p>
                         <p className="text-2xl font-bold text-red-600">₹{report.fineData.aniketnayak}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Sourav's Fines</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Sourav's Fines</p>
                         <p className="text-2xl font-bold text-red-600">₹{report.fineData.souravssk}</p>
                       </div>
                     </div>
-                    <div className="mt-4 pt-4 border-t border-red-200">
+                    <div className="mt-4 pt-4 border-t border-red-200 dark:border-red-800">
                       <p className="text-sm text-gray-700 font-medium">Net Balance:</p>
                       {report.fineData.aniketnayak === report.fineData.souravssk ? (
-                        <p className="text-lg font-bold text-gray-800">Settled ✓</p>
+                        <p className="text-lg font-bold text-gray-800 dark:text-white">Settled ✓</p>
                       ) : report.fineData.aniketnayak > report.fineData.souravssk ? (
                         <p className="text-lg font-bold text-red-600">
                           Aniket owes ₹{report.fineData.aniketnayak - report.fineData.souravssk}
@@ -843,17 +844,17 @@ export default function BadmintonTracker() {
                   </div>
 
                   {/* Match Summary */}
-                  <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
                     <h5 className="font-bold text-lg mb-3 text-blue-800">Match Summary</h5>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-gray-600">Aniket</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Aniket</p>
                         <p className="text-xl font-bold text-blue-600">
                           {report.matchData.aniketnayak.wins}W - {report.matchData.aniketnayak.losses}L
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Sourav</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Sourav</p>
                         <p className="text-xl font-bold text-green-600">
                           {report.matchData.souravssk.wins}W - {report.matchData.souravssk.losses}L
                         </p>
@@ -863,11 +864,11 @@ export default function BadmintonTracker() {
 
                   {/* Settlements in Month */}
                   {report.monthSettlements.length > 0 && (
-                    <div className="bg-green-50 rounded-lg p-4">
+                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
                       <h5 className="font-bold text-lg mb-3 text-green-800">Settlements</h5>
                       <div className="space-y-2">
                         {report.monthSettlements.map(settlement => (
-                          <div key={settlement.id} className="bg-white rounded p-3 text-sm">
+                          <div key={settlement.id} className="bg-white dark:bg-slate-800 rounded p-3 text-sm">
                             <p className="font-medium">
                               {users[settlement.payer as 'aniketnayak' | 'souravssk'].displayName} → {users[settlement.receiver as 'aniketnayak' | 'souravssk'].displayName}: ₹{settlement.balance}
                             </p>
@@ -881,7 +882,7 @@ export default function BadmintonTracker() {
                   )}
 
                   {/* Activity Count */}
-                  <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4">
                     <h5 className="font-bold text-lg mb-3">Activity</h5>
                     <p className="text-gray-700">
                       Total Events: {report.monthMatches.length} 
@@ -898,3 +899,4 @@ export default function BadmintonTracker() {
     </div>
   );
 }
+
