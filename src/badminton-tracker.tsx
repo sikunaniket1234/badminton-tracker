@@ -157,6 +157,7 @@ export default function BadmintonTracker() {
       return;
     }
 
+    setLoading(true);
     try {
       const selectedDate = fineDate ? new Date(fineDate) : new Date();
       const today = new Date();
@@ -210,6 +211,46 @@ export default function BadmintonTracker() {
     } catch (err) {
       console.error('Error adding fine:', err);
       alert('Failed to add fine');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteFine = async (matchId: string) => {
+    if (!window.confirm('Are you sure you want to delete this fine?')) {
+      return;
+    }
+
+    try {
+      const fineToDelete = matches.find(m => m.id === matchId && m.type === 'fine');
+      if (!fineToDelete) return;
+
+      // Delete the fine record
+      const { error: deleteError } = await supabase.from('matches').delete().eq('id', matchId);
+      if (deleteError) throw deleteError;
+
+      // Get current fine amount from DB
+      const { data: currentFineData } = await supabase
+        .from('user_fines')
+        .select('amount')
+        .eq('user_id', currentUser.id)
+        .single();
+
+      const currentFineAmount = currentFineData?.amount || 0;
+
+      // Update user fines by subtracting the deleted fine amount
+      const { error: fineError } = await supabase
+        .from('user_fines')
+        .update({ amount: Math.max(0, currentFineAmount - (fineToDelete.amount || 0)) })
+        .eq('user_id', currentUser.id);
+
+      if (fineError) throw fineError;
+
+      // Reload all data
+      await loadUserData(currentUser.id);
+    } catch (err) {
+      console.error('Error deleting fine:', err);
+      alert('Failed to delete fine');
     }
   };
 
@@ -368,12 +409,7 @@ export default function BadmintonTracker() {
             </button>
           </form>
 
-          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-gray-600 dark:text-gray-300">
-            <p className="font-semibold mb-2">Demo Credentials:</p>
-            <p>Email: aniket@badminton.app</p>
-            <p>Email: sourav@badminton.app</p>
-            <p className="mt-2 text-xs italic">(Ask your admin for the password)</p>
-          </div>
+
         </div>
       </div>
     );
@@ -510,12 +546,20 @@ export default function BadmintonTracker() {
                           </p>
                         </div>
                       ) : (
-                        <div>
-                          <p className="font-semibold text-red-600">Fine: ₹{match.amount}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">{match.reason}</p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {new Date(match.date).toLocaleString()}
-                          </p>
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <p className="font-semibold text-red-600">Fine: ₹{match.amount}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">{match.reason}</p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {new Date(match.date).toLocaleString()}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => deleteFine(match.id)}
+                            className="ml-2 px-2 py-1 text-xs bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/40 transition"
+                          >
+                            Delete
+                          </button>
                         </div>
                       )}
                     </div>
@@ -558,10 +602,18 @@ export default function BadmintonTracker() {
                         <p className="text-xs text-gray-500">{new Date(match.date).toLocaleString()}</p>
                       </div>
                     ) : (
-                      <div>
-                        <p className="font-semibold">Fine: ₹{match.amount}</p>
-                        <p className="text-sm">{match.reason}</p>
-                        <p className="text-xs text-gray-500">{new Date(match.date).toLocaleString()}</p>
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <p className="font-semibold">Fine: ₹{match.amount}</p>
+                          <p className="text-sm">{match.reason}</p>
+                          <p className="text-xs text-gray-500">{new Date(match.date).toLocaleString()}</p>
+                        </div>
+                        <button
+                          onClick={() => deleteFine(match.id)}
+                          className="ml-2 px-2 py-1 text-xs bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/40 transition"
+                        >
+                          Delete
+                        </button>
                       </div>
                     )}
                   </div>
@@ -684,9 +736,10 @@ export default function BadmintonTracker() {
 
               <button
                 onClick={addFine}
-                className="w-full bg-red-600 dark:bg-red-700 hover:bg-red-700 text-white font-semibold py-3 rounded-lg transition"
+                disabled={loading}
+                className="w-full bg-red-600 dark:bg-red-700 hover:bg-red-700 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition"
               >
-                Add Fine to My Account
+                {loading ? 'Adding Fine...' : 'Add Fine to My Account'}
               </button>
             </div>
           </div>
