@@ -57,21 +57,61 @@ export default function BadmintonTracker() {
     loadData();
   }, []);
 
+  const archiveKey = (year: number) => `archive-${year}`;
+
   const loadData = async () => {
     try {
       const finesData = localStorage.getItem('fines');
       const matchesData = localStorage.getItem('matches');
       const settlementsData = localStorage.getItem('settlements');
-      
-      if (finesData) {
-        setFines(JSON.parse(finesData));
+      const lastRolloverData = localStorage.getItem('lastRolloverYear');
+
+      const parsedFines = finesData ? JSON.parse(finesData) : null;
+      const parsedMatches = matchesData ? JSON.parse(matchesData) : null;
+      const parsedSettlements = settlementsData ? JSON.parse(settlementsData) : null;
+
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const lastRolloverYear = lastRolloverData ? parseInt(lastRolloverData, 10) : currentYear;
+
+      // If last rollover is older than current year, archive previous year's data
+      if (lastRolloverYear < currentYear) {
+        const archiveData = {
+          year: lastRolloverYear,
+          archivedAt: new Date().toISOString(),
+          fines: parsedFines || { aniketnayak: 0, souravssk: 0 },
+          matches: parsedMatches || [],
+          settlements: parsedSettlements || []
+        };
+
+        try {
+          localStorage.setItem(archiveKey(lastRolloverYear), JSON.stringify(archiveData));
+          // maintain an index of archives
+          const archivesIndexRaw = localStorage.getItem('archivesIndex');
+          const archivesIndex = archivesIndexRaw ? JSON.parse(archivesIndexRaw) : [];
+          if (!archivesIndex.includes(lastRolloverYear)) archivesIndex.push(lastRolloverYear);
+          localStorage.setItem('archivesIndex', JSON.stringify(archivesIndex));
+        } catch (err) {
+          console.error('Failed to archive previous year data', err);
+        }
+
+        // Reset current-year data
+        const resetFines = { aniketnayak: 0, souravssk: 0 };
+        setFines(resetFines);
+        setMatches([]);
+        setSettlements([]);
+        await saveData(resetFines, [], []);
+
+        localStorage.setItem('lastRolloverYear', currentYear.toString());
+        return;
       }
-      if (matchesData) {
-        setMatches(JSON.parse(matchesData));
-      }
-      if (settlementsData) {
-        setSettlements(JSON.parse(settlementsData));
-      }
+
+      // Otherwise, load existing data if present
+      if (parsedFines) setFines(parsedFines);
+      if (parsedMatches) setMatches(parsedMatches);
+      if (parsedSettlements) setSettlements(parsedSettlements);
+      // ensure lastRolloverYear is set for first time users
+      if (!lastRolloverData) localStorage.setItem('lastRolloverYear', currentYear.toString());
     } catch (error) {
       console.log('No existing data, starting fresh');
     }
@@ -86,6 +126,8 @@ export default function BadmintonTracker() {
       console.error('Error saving data:', error);
     }
   };
+
+  // (archives can be read directly from localStorage under keys `archive-<year>`)
 
   const handleLogin = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
