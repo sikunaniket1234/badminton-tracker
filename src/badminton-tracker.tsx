@@ -1,36 +1,33 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { Trophy, IndianRupee, X, Users, History, Calendar, CheckCircle } from 'lucide-react';
-
-interface User {
-  password: string;
-  displayName: string;
-}
+import { Trophy, IndianRupee, X, Users, History, Calendar, CheckCircle, LogOut } from 'lucide-react';
+import { supabase } from './supabaseClient';
 
 interface Match {
-  id: number;
+  id: string;
   type: 'match' | 'fine';
   player?: string;
   amount?: number;
   reason?: string;
-  scores?: { aniketnayak: number; souravssk: number };
+  scores_aniket?: number;
+  scores_sourav?: number;
   winner?: string;
   date: string;
+  user_id: string;
 }
 
 interface Settlement {
-  id: number;
-  date: string;
-  finesBeforeSettlement: { aniketnayak: number; souravssk: number };
-  balance: number;
+  id: string;
   payer: string;
   receiver: string;
-  transactionId: string;
+  amount: number;
+  transaction_id: string;
   settled: boolean;
+  user_id: string;
 }
 
 export default function BadmintonTracker() {
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
-  const [loginUsername, setLoginUsername] = useState('');
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [fines, setFines] = useState<Record<string, number>>({ aniketnayak: 0, souravssk: 0 });
   const [matches, setMatches] = useState<Match[]>([]);
@@ -46,186 +43,112 @@ export default function BadmintonTracker() {
   const [fineDate, setFineDate] = useState('');
   const [transactionId, setTransactionId] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
-  const [remoteApiKey, setRemoteApiKey] = useState('');
-  const [remoteBinId, setRemoteBinId] = useState('');
-  const [remoteMessage, setRemoteMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
 
-  const users: Record<'aniketnayak' | 'souravssk', User> = {
-    aniketnayak: { password: 'aniket123', displayName: 'Aniket' },
-    souravssk: { password: 'sourav123', displayName: 'Sourav' }
+  // Map user_id to username for display
+  const userIdToUsername: Record<string, string> = {
+    'e79194c8-cd07-4ded-b30c-63859a80ea28': 'aniketnayak',
+    'ee3029d3-c8e1-4099-b3ca-1c29d45890bb': 'souravssk'
   };
 
-  // Load data on mount
+  const userIdToDisplayName: Record<string, string> = {
+    'e79194c8-cd07-4ded-b30c-63859a80ea28': 'Aniket',
+    'ee3029d3-c8e1-4099-b3ca-1c29d45890bb': 'Sourav'
+  };
+
+  // Check if user is already logged in
   useEffect(() => {
-    loadData();
-  }, []);
+    const checkUser = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session?.user) {
+        setCurrentUser(data.session.user);
+        await loadUserData(data.session.user.id);
+      }
+    };
+    checkUser();
 
-  const archiveKey = (year: number) => `archive-${year}`;
-
-  const loadData = async () => {
-    try {
-      const finesData = localStorage.getItem('fines');
-      const matchesData = localStorage.getItem('matches');
-      const settlementsData = localStorage.getItem('settlements');
-      const lastRolloverData = localStorage.getItem('lastRolloverYear');
-
-      const parsedFines = finesData ? JSON.parse(finesData) : null;
-      const parsedMatches = matchesData ? JSON.parse(matchesData) : null;
-      const parsedSettlements = settlementsData ? JSON.parse(settlementsData) : null;
-
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const lastRolloverYear = lastRolloverData ? parseInt(lastRolloverData, 10) : currentYear;
-
-      // If last rollover is older than current year, archive previous year's data
-      if (lastRolloverYear < currentYear) {
-        const archiveData = {
-          year: lastRolloverYear,
-          archivedAt: new Date().toISOString(),
-          fines: parsedFines || { aniketnayak: 0, souravssk: 0 },
-          matches: parsedMatches || [],
-          settlements: parsedSettlements || []
-        };
-
-        try {
-          localStorage.setItem(archiveKey(lastRolloverYear), JSON.stringify(archiveData));
-          // maintain an index of archives
-          const archivesIndexRaw = localStorage.getItem('archivesIndex');
-          const archivesIndex = archivesIndexRaw ? JSON.parse(archivesIndexRaw) : [];
-          if (!archivesIndex.includes(lastRolloverYear)) archivesIndex.push(lastRolloverYear);
-          localStorage.setItem('archivesIndex', JSON.stringify(archivesIndex));
-        } catch (err) {
-          console.error('Failed to archive previous year data', err);
-        }
-
-        // Reset current-year data
-        const resetFines = { aniketnayak: 0, souravssk: 0 };
-        setFines(resetFines);
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        setCurrentUser(session.user);
+        await loadUserData(session.user.id);
+      } else {
+        setCurrentUser(null);
         setMatches([]);
         setSettlements([]);
-        await saveData(resetFines, [], []);
-
-        localStorage.setItem('lastRolloverYear', currentYear.toString());
-        return;
+        setFines({ aniketnayak: 0, souravssk: 0 });
       }
+    });
 
-      // Otherwise, load existing data if present
-      if (parsedFines) setFines(parsedFines);
-      if (parsedMatches) setMatches(parsedMatches);
-      if (parsedSettlements) setSettlements(parsedSettlements);
-      // ensure lastRolloverYear is set for first time users
-      if (!lastRolloverData) localStorage.setItem('lastRolloverYear', currentYear.toString());
-    } catch (error) {
-      console.log('No existing data, starting fresh');
-    }
-  };
+    return () => subscription?.unsubscribe();
+  }, []);
 
-  const saveData = async (newFines?: Record<string, number>, newMatches?: Match[], newSettlements?: Settlement[]) => {
+  const loadUserData = async (userId: string) => {
     try {
-      localStorage.setItem('fines', JSON.stringify(newFines || fines));
-      localStorage.setItem('matches', JSON.stringify(newMatches || matches));
-      localStorage.setItem('settlements', JSON.stringify(newSettlements || settlements));
-    } catch (error) {
-      console.error('Error saving data:', error);
-    }
-  };
+      // Load matches
+      const { data: matchesData, error: matchesError } = await supabase
+        .from('matches')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false });
 
-  // (archives can be read directly from localStorage under keys `archive-<year>`)
+      if (matchesError) throw matchesError;
+      setMatches(matchesData || []);
 
-  // Remote sync helpers (JSONBin v3). Provide your JSONBin API key and an optional bin id.
-  // For personal use across a couple devices storing the API key in localStorage is acceptable.
-  const saveToRemote = async () => {
-    setRemoteMessage('');
-    try {
-      if (!remoteApiKey) throw new Error('Provide JSONBin API key in Remote Sync section');
+      // Load settlements
+      const { data: settlementsData, error: settlementsError } = await supabase
+        .from('settlements')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
 
-      const payload = {
-        fines: fines || { aniketnayak: 0, souravssk: 0 },
-        matches: matches || [],
-        settlements: settlements || [],
-        lastRolloverYear: localStorage.getItem('lastRolloverYear') || new Date().getFullYear()
-      };
+      if (settlementsError) throw settlementsError;
+      setSettlements(settlementsData || []);
 
-      if (remoteBinId) {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${remoteBinId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Master-Key': remoteApiKey
-          },
-          body: JSON.stringify(payload)
+      // Load fines from user_fines table
+      const { data: allFines, error: finesError } = await supabase
+        .from('user_fines')
+        .select('*');
+
+      if (!finesError && allFines) {
+        const finesByUser: Record<string, number> = {};
+        allFines.forEach(f => {
+          const username = userIdToUsername[f.user_id] || f.user_id;
+          finesByUser[username] = f.amount || 0;
         });
-
-        if (!res.ok) throw new Error(`Update failed: ${res.status}`);
-        setRemoteMessage('Saved to existing remote bin.');
-      } else {
-        const res = await fetch('https://api.jsonbin.io/v3/b', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Master-Key': remoteApiKey
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) throw new Error(`Create failed: ${res.status}`);
-        const json = await res.json();
-        const id = json && json.record && (json.record.id || json.record._id || json.id);
-        if (!id) throw new Error('Could not read created bin id');
-        setRemoteBinId(id);
-        localStorage.setItem('remoteBinId', id);
-        localStorage.setItem('remoteApiKey', remoteApiKey);
-        setRemoteMessage(`Created remote bin ${id}`);
+        setFines(finesByUser);
       }
-    } catch (err: any) {
-      console.error(err);
-      setRemoteMessage(err?.message || 'Remote save failed');
+    } catch (err) {
+      console.error('Error loading user data:', err);
     }
   };
 
-  const loadFromRemote = async () => {
-    setRemoteMessage('');
-    try {
-      if (!remoteApiKey) throw new Error('Provide JSONBin API key in Remote Sync section');
-      if (!remoteBinId) throw new Error('Provide remote bin id in Remote Sync section');
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setAuthError('');
+    setLoading(true);
 
-      const res = await fetch(`https://api.jsonbin.io/v3/b/${remoteBinId}/latest`, {
-        method: 'GET',
-        headers: { 'X-Master-Key': remoteApiKey }
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword
       });
 
-      if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-      const json = await res.json();
-      const data = json && json.record ? json.record : json;
-      if (!data) throw new Error('No data in remote bin');
+      if (error) throw error;
 
-      if (data.fines) setFines(data.fines);
-      if (data.matches) setMatches(data.matches);
-      if (data.settlements) setSettlements(data.settlements);
-      if (data.lastRolloverYear) localStorage.setItem('lastRolloverYear', data.lastRolloverYear.toString());
-
-      await saveData(data.fines, data.matches, data.settlements);
-      setRemoteMessage('Loaded remote data and saved locally');
-    } catch (err: any) {
-      console.error(err);
-      setRemoteMessage(err?.message || 'Remote load failed');
-    }
-  };
-
-  const handleLogin = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (loginUsername && users[loginUsername as 'aniketnayak' | 'souravssk'] && users[loginUsername as 'aniketnayak' | 'souravssk'].password === loginPassword) {
-      setCurrentUser(loginUsername);
-      setLoginUsername('');
+      setLoginEmail('');
       setLoginPassword('');
-    } else {
-      alert('Invalid username or password');
+    } catch (err: any) {
+      setAuthError(err?.message || 'Login failed');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setCurrentUser(null);
-    setActiveTab('home');
   };
 
   const addFine = async () => {
@@ -234,67 +157,85 @@ export default function BadmintonTracker() {
       return;
     }
 
-    // Validate that date is within 7 days
-    const selectedDate = fineDate ? new Date(fineDate) : new Date();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    selectedDate.setHours(0, 0, 0, 0);
-    
-    const daysBack = Math.floor((today.getTime() - selectedDate.getTime()) / (1000 * 60 * 60 * 24));
-    if (daysBack < 0 || daysBack > 7) {
-      alert('Fine date must be within the last 7 days');
-      return;
-    }
+    try {
+      const selectedDate = fineDate ? new Date(fineDate) : new Date();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      selectedDate.setHours(0, 0, 0, 0);
 
-    const newFines = { ...fines };
-    newFines[currentUser as 'aniketnayak' | 'souravssk'] += parseInt(fineAmount);
-    
-    const newMatch: Match = {
-      id: Date.now(),
-      type: 'fine',
-      player: currentUser,
-      amount: parseInt(fineAmount),
-      reason: fineReason,
-      date: new Date(selectedDate).toISOString()
-    };
-    
-    const newMatches = [newMatch, ...matches];
-    
-    setFines(newFines);
-    setMatches(newMatches);
-    await saveData(newFines, newMatches, settlements);
-    
-    setShowNewFine(false);
-    setFineAmount('10');
-    setFineReason('');
-    setFineDate('');
+      const daysBack = Math.floor((today.getTime() - selectedDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysBack < 0 || daysBack > 7) {
+        alert('Fine date must be within the last 7 days');
+        return;
+      }
+
+      const newFineAmount = parseInt(fineAmount);
+      const currentFineAmount = fines[userIdToUsername[currentUser.id]] || 0;
+
+      // Insert match record (fine)
+      const { error: matchError } = await supabase.from('matches').insert({
+        user_id: currentUser.id,
+        type: 'fine',
+        player: userIdToUsername[currentUser.id],
+        amount: newFineAmount,
+        reason: fineReason,
+        date: new Date(selectedDate).toISOString()
+      });
+
+      if (matchError) throw matchError;
+
+      // Update user fines
+      const { error: fineError } = await supabase
+        .from('user_fines')
+        .update({ amount: currentFineAmount + newFineAmount })
+        .eq('user_id', currentUser.id);
+
+      if (fineError) throw fineError;
+
+      // Reload data
+      await loadUserData(currentUser.id);
+
+      setShowNewFine(false);
+      setFineAmount('10');
+      setFineReason('');
+      setFineDate('');
+    } catch (err) {
+      console.error('Error adding fine:', err);
+      alert('Failed to add fine');
+    }
   };
 
   const addMatch = async () => {
     const score1 = parseInt(matchScores.aniketnayak);
     const score2 = parseInt(matchScores.souravssk);
-    
+
     if (isNaN(score1) || isNaN(score2)) {
       alert('Please enter valid scores');
       return;
     }
 
-    const winner = score1 > score2 ? 'aniketnayak' : 'souravssk';
-    
-    const newMatch: Match = {
-      id: Date.now(),
-      type: 'match',
-      scores: { aniketnayak: score1, souravssk: score2 },
-      winner,
-      date: new Date().toISOString()
-    };
-    
-    const newMatches = [newMatch, ...matches];
-    setMatches(newMatches);
-    await saveData(fines, newMatches, settlements);
-    
-    setShowNewMatch(false);
-    setMatchScores({ aniketnayak: '', souravssk: '' });
+    try {
+      const winner = score1 > score2 ? 'aniketnayak' : 'souravssk';
+
+      const { error } = await supabase.from('matches').insert({
+        user_id: currentUser.id,
+        type: 'match',
+        scores_aniket: score1,
+        scores_sourav: score2,
+        winner,
+        date: new Date().toISOString()
+      });
+
+      if (error) throw error;
+
+      await loadUserData(currentUser.id);
+
+      setShowNewMatch(false);
+      setMatchScores({ aniketnayak: '', souravssk: '' });
+    } catch (err) {
+      console.error('Error adding match:', err);
+      alert('Failed to add match');
+    }
   };
 
   const handleSettlement = async () => {
@@ -303,163 +244,92 @@ export default function BadmintonTracker() {
       return;
     }
 
-    const fineBalance = fines.aniketnayak - fines.souravssk;
-    
-    const settlement: Settlement = {
-      id: Date.now(),
-      date: new Date().toISOString(),
-      finesBeforeSettlement: { aniketnayak: fines.aniketnayak, souravssk: fines.souravssk },
-      balance: Math.abs(fineBalance),
-      payer: fineBalance > 0 ? 'aniketnayak' : 'souravssk',
-      receiver: fineBalance > 0 ? 'souravssk' : 'aniketnayak',
-      transactionId: transactionId,
-      settled: true
-    };
+    try {
+      const otherUsername = userIdToUsername[currentUser.id] === 'aniketnayak' ? 'souravssk' : 'aniketnayak';
+      const fineBalance = fines[userIdToUsername[currentUser.id]] - fines[otherUsername];
 
-    const newSettlements: Settlement[] = [settlement, ...settlements];
-    const newFines = { aniketnayak: 0, souravssk: 0 };
-    
-    setSettlements(newSettlements);
-    setFines(newFines);
-    await saveData(newFines, matches, newSettlements);
-    
-    setShowSettlement(false);
-    setTransactionId('');
-    alert('Settlement recorded successfully!');
+      // Insert settlement
+      const { error: settlementError } = await supabase.from('settlements').insert({
+        user_id: currentUser.id,
+        payer: fineBalance > 0 ? userIdToUsername[currentUser.id] : otherUsername,
+        receiver: fineBalance > 0 ? otherUsername : userIdToUsername[currentUser.id],
+        amount: Math.abs(fineBalance),
+        transaction_id: transactionId,
+        settled: true
+      });
+
+      if (settlementError) throw settlementError;
+
+      // Reset both users' fines to 0
+      const otherUserId = userIdToUsername[currentUser.id] === 'aniketnayak' ? 'ee3029d3-c8e1-4099-b3ca-1c29d45890bb' : 'e79194c8-cd07-4ded-b30c-63859a80ea28';
+      
+      await supabase.from('user_fines').update({ amount: 0 }).eq('user_id', currentUser.id);
+      await supabase.from('user_fines').update({ amount: 0 }).eq('user_id', otherUserId);
+
+      await loadUserData(currentUser.id);
+
+      setShowSettlement(false);
+      setTransactionId('');
+    } catch (err) {
+      console.error('Error settling:', err);
+      alert('Failed to settle fines');
+    }
   };
 
-  const getMonthlyReport = (yearMonth: string) => {
-    const [year, month] = yearMonth.split('-').map(Number);
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0, 23, 59, 59);
-
-    const monthMatches = matches.filter((m: Match) => {
-      const matchDate = new Date(m.date);
-      return matchDate >= startDate && matchDate <= endDate;
-    });
-
-    const monthSettlements = settlements.filter((s: Settlement) => {
-      const settlementDate = new Date(s.date);
-      return settlementDate >= startDate && settlementDate <= endDate;
-    });
-
-    const fineData = {
-      aniketnayak: 0,
-      souravssk: 0
-    };
-
-    const matchData = {
-      aniketnayak: { wins: 0, losses: 0 },
-      souravssk: { wins: 0, losses: 0 }
-    };
-
-    monthMatches.forEach((match: Match) => {
-      if (match.type === 'fine' && match.player && match.amount) {
-        const player = match.player as 'aniketnayak' | 'souravssk';
-        fineData[player] += match.amount;
-      } else if (match.type === 'match') {
-        if (match.winner === 'aniketnayak') {
-          matchData.aniketnayak.wins++;
-          matchData.souravssk.losses++;
-        } else {
-          matchData.souravssk.wins++;
-          matchData.aniketnayak.losses++;
-        }
-      }
-    });
-
-    return { fineData, matchData, monthMatches, monthSettlements };
+  const getCurrentDate = () => {
+    return new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   };
 
   const getStats = () => {
-    const matchHistory = matches.filter(m => m.type === 'match');
-    const stats = {
-      aniketnayak: { wins: 0, losses: 0, totalPoints: 0 },
-      souravssk: { wins: 0, losses: 0, totalPoints: 0 }
-    };
+    const matches_played = matches.filter((m: Match) => m.type === 'match').length;
+    const wins = matches.filter((m: Match) => m.type === 'match' && m.winner === userIdToUsername[currentUser?.id]).length;
+    return { matches_played, wins };
+  };
 
-    matchHistory.forEach((match: Match) => {
-      if (match.winner === 'aniketnayak') {
-        stats.aniketnayak.wins++;
-        stats.souravssk.losses++;
-      } else {
-        stats.souravssk.wins++;
-        stats.aniketnayak.losses++;
-      }
-      if (match.scores) {
-        stats.aniketnayak.totalPoints += match.scores.aniketnayak;
-        stats.souravssk.totalPoints += match.scores.souravssk;
+  const getMonthlyReport = () => {
+    if (!selectedMonth) return null;
+
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const monthMatches = matches.filter((m: Match) => {
+      const d = new Date(m.date);
+      return d.getFullYear() === year && d.getMonth() + 1 === month;
+    });
+
+    const stats = { totalMatches: 0, wins: 0, fines: 0, fineAmount: 0 };
+    monthMatches.forEach(m => {
+      if (m.type === 'match') {
+        stats.totalMatches++;
+        if (m.winner === userIdToUsername[currentUser?.id]) stats.wins++;
+      } else if (m.type === 'fine') {
+        stats.fines++;
+        stats.fineAmount += m.amount || 0;
       }
     });
 
     return stats;
   };
 
-  const getCurrentDate = () => {
-    return new Date().toLocaleDateString('en-IN', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-  };
-
-  // Login Screen
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-400 to-blue-500 dark:from-green-900 dark:to-blue-900 flex items-center justify-center p-4">
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 max-w-md w-full">
-          <div className="text-center mb-8">
-            <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Badminton Tracker</h1>
-            <p className="text-gray-600 dark:text-gray-300 mt-2">Track fines & scores</p>
-            
-          </div>
-          
+          <h1 className="text-3xl font-bold text-center mb-6 text-gray-800 dark:text-white">🏸 Badminton Tracker</h1>
+
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Username</label>
-              <select
-                value={loginUsername}
-                onChange={(e) => setLoginUsername(e.target.value)}
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Email</label>
+              <input
+                type="email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
                 className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="aniket@badminton.app or sourav@badminton.app"
                 required
-              >
-                <option value="">Select User</option>
-                <option value="aniketnayak">Aniket</option>
-                <option value="souravssk">Sourav</option>
-              </select>
+              />
             </div>
 
-            {/* Remote Sync (JSONBin) */}
-            <div className="mt-4 bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
-              <h3 className="font-bold text-lg mb-2 text-gray-800 dark:text-white">Remote Sync (JSONBin)</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">Enter your JSONBin API key and bin id to sync data across devices. Create a free account at <a className="underline" href="https://jsonbin.io" target="_blank" rel="noreferrer">jsonbin.io</a>.</p>
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  value={remoteApiKey}
-                  onChange={(e) => setRemoteApiKey(e.target.value)}
-                  placeholder="JSONBin API key"
-                  className="w-full border rounded-lg px-3 py-2 dark:bg-slate-700 dark:border-slate-600"
-                />
-                <input
-                  type="text"
-                  value={remoteBinId}
-                  onChange={(e) => setRemoteBinId(e.target.value)}
-                  placeholder="Bin ID (leave empty to create new)"
-                  className="w-full border rounded-lg px-3 py-2 dark:bg-slate-700 dark:border-slate-600"
-                />
-                <div className="flex gap-2">
-                  <button onClick={saveToRemote} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Save to Remote</button>
-                  <button onClick={loadFromRemote} className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">Load from Remote</button>
-                </div>
-                {remoteMessage && <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{remoteMessage}</p>}
-              </div>
-            </div>
-            
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Password</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Password</label>
               <input
                 type="password"
                 value={loginPassword}
@@ -470,23 +340,33 @@ export default function BadmintonTracker() {
               />
             </div>
 
+            {authError && <p className="text-red-600 dark:text-red-400 text-sm">{authError}</p>}
+
             <button
               type="submit"
-              className="w-full bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-200 shadow-lg"
+              disabled={loading}
+              className="w-full bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition duration-200 shadow-lg"
             >
-              Login
+              {loading ? 'Logging in...' : 'Login'}
             </button>
           </form>
+
+          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-gray-600 dark:text-gray-300">
+            <p className="font-semibold mb-2">Demo Credentials:</p>
+            <p>Email: aniket@badminton.app</p>
+            <p>Email: sourav@badminton.app</p>
+            <p className="mt-2 text-xs italic">(Ask your admin for the password)</p>
+          </div>
         </div>
       </div>
     );
   }
 
   const stats = getStats();
-  const otherUser = currentUser === 'aniketnayak' ? 'souravssk' : 'aniketnayak';
-  const fineBalance = fines[currentUser] - fines[otherUser];
+  const otherUser = userIdToUsername[currentUser.id] === 'aniketnayak' ? 'souravssk' : 'aniketnayak';
+  const otherDisplayName = otherUser === 'aniketnayak' ? 'Aniket' : 'Sourav';
+  const fineBalance = (fines[userIdToUsername[currentUser.id]] || 0) - (fines[otherUser] || 0);
 
-  // Main App
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-slate-900">
       {/* Header */}
@@ -495,12 +375,13 @@ export default function BadmintonTracker() {
           <div className="flex justify-between items-center mb-2">
             <div>
               <h1 className="text-2xl font-bold">🏸 Badminton Tracker</h1>
-              <p className="text-sm opacity-90">Hello, {currentUser && users[currentUser as 'aniketnayak' | 'souravssk'].displayName}!</p>
+              <p className="text-sm opacity-90">Hello, {userIdToDisplayName[currentUser.id]}!</p>
             </div>
             <button
               onClick={handleLogout}
-              className="bg-white dark:bg-slate-700 bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg text-sm transition"
+              className="bg-white dark:bg-slate-700 bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg text-sm transition flex items-center gap-2"
             >
+              <LogOut className="w-4 h-4" />
               Logout
             </button>
           </div>
@@ -514,54 +395,32 @@ export default function BadmintonTracker() {
       {/* Tab Navigation */}
       <div className="bg-white dark:bg-slate-800 border-b dark:border-slate-700 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto flex">
-          <button
-            onClick={() => setActiveTab('home')}
-            className={`flex-1 py-4 text-center font-medium transition ${
-              activeTab === 'home' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600' : 'text-gray-600 dark:text-gray-400'
-            }`}
-          >
-            <Trophy className="w-5 h-5 mx-auto mb-1" />
-            Home
-          </button>
-          <button
-            onClick={() => setActiveTab('stats')}
-            className={`flex-1 py-4 text-center font-medium transition ${
-              activeTab === 'stats' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600' : 'text-gray-600 dark:text-gray-400'
-            }`}
-          >
-            <Users className="w-5 h-5 mx-auto mb-1" />
-            Stats
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`flex-1 py-4 text-center font-medium transition ${
-              activeTab === 'history' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600' : 'text-gray-600 dark:text-gray-400'
-            }`}
-          >
-            <History className="w-5 h-5 mx-auto mb-1" />
-            History
-          </button>
-          <button
-            onClick={() => setActiveTab('settlements')}
-            className={`flex-1 py-4 text-center font-medium transition ${
-              activeTab === 'settlements' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 dark:text-gray-300'
-            }`}
-          >
-            <CheckCircle className="w-5 h-5 mx-auto mb-1" />
-            Settled
-          </button>
+          {['home', 'stats', 'history', 'settlements'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 py-4 text-center font-medium transition ${
+                activeTab === tab ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600' : 'text-gray-600 dark:text-gray-400'
+              }`}
+            >
+              {tab === 'home' && <Trophy className="w-5 h-5 mx-auto mb-1" />}
+              {tab === 'stats' && <Users className="w-5 h-5 mx-auto mb-1" />}
+              {tab === 'history' && <History className="w-5 h-5 mx-auto mb-1" />}
+              {tab === 'settlements' && <CheckCircle className="w-5 h-5 mx-auto mb-1" />}
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto p-4 pb-20">
-        {/* Home Tab */}
+      {/* Content */}
+      <div className="max-w-4xl mx-auto p-4">
         {activeTab === 'home' && (
           <div className="space-y-4">
-            {/* Fine Balance Card */}
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center">
-                  <IndianRupee className="w-5 h-5 mr-2" />
+                  <IndianRupee className="w-6 h-6 mr-2" />
                   Fine Balance
                 </h2>
                 <button
@@ -571,30 +430,23 @@ export default function BadmintonTracker() {
                   Settle
                 </button>
               </div>
-              
-              <div className="text-center">
-                {fineBalance === 0 ? (
-                  <p className="text-gray-600 dark:text-gray-300 text-lg">All settled! 🎉</p>
-                ) : fineBalance > 0 ? (
-                  <div>
-                    <p className="text-gray-600 dark:text-gray-300 mb-2">You owe {users[otherUser].displayName}</p>
-                    <p className="text-4xl font-bold text-red-600">₹{Math.abs(fineBalance)}</p>
-                  </div>
+
+              <div className="text-4xl font-bold mb-4">
+                {fineBalance > 0 ? (
+                  <span className="text-red-600">₹{fineBalance} (You owe)</span>
+                ) : fineBalance < 0 ? (
+                  <span className="text-green-600">₹{Math.abs(fineBalance)} (You get)</span>
                 ) : (
-                  <div>
-                    <p className="text-gray-600 dark:text-gray-300 mb-2">{users[otherUser].displayName} owes you</p>
-                    <p className="text-4xl font-bold text-green-600">₹{Math.abs(fineBalance)}</p>
-                  </div>
+                  <span className="text-gray-600 dark:text-gray-300">Balanced ✨</span>
                 )}
               </div>
-              
+
               <div className="mt-4 pt-4 border-t flex justify-between text-sm text-gray-600 dark:text-gray-300">
-                <div>Your fines: ₹{fines[currentUser]}</div>
-                <div>{users[otherUser].displayName}'s fines: ₹{fines[otherUser]}</div>
+                <div>Your fines: ₹{fines[userIdToUsername[currentUser.id]] || 0}</div>
+                <div>{otherDisplayName}'s fines: ₹{fines[otherUser] || 0}</div>
               </div>
             </div>
 
-            {/* Monthly Report Button */}
             <button
               onClick={() => setShowMonthlyReport(true)}
               className="w-full bg-purple-500 hover:bg-purple-600 text-white rounded-xl p-4 shadow-md transition flex items-center justify-center"
@@ -603,7 +455,6 @@ export default function BadmintonTracker() {
               <span className="font-semibold">View Monthly Report</span>
             </button>
 
-            {/* Quick Actions */}
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => setShowNewMatch(true)}
@@ -621,10 +472,9 @@ export default function BadmintonTracker() {
               </button>
             </div>
 
-            {/* Recent Activity */}
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
               <h3 className="font-bold text-lg mb-4 text-gray-800 dark:text-white">Recent Activity</h3>
-              {matches.slice(0, 5).length === 0 ? (
+              {matches.length === 0 ? (
                 <p className="text-gray-500 text-center py-4">No activity yet</p>
               ) : (
                 <div className="space-y-3">
@@ -636,7 +486,7 @@ export default function BadmintonTracker() {
                             {match.winner === 'aniketnayak' ? '🏆 Aniket' : '🏆 Sourav'} won
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-300">
-                            Score: {match.scores?.aniketnayak} - {match.scores?.souravssk}
+                            Score: {match.scores_aniket} - {match.scores_sourav}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
                             {new Date(match.date).toLocaleString()}
@@ -644,10 +494,8 @@ export default function BadmintonTracker() {
                         </div>
                       ) : (
                         <div>
-                          <p className="font-semibold">
-                            💰 {match.player && users[match.player as 'aniketnayak' | 'souravssk'].displayName} - Fine
-                          </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">₹{match.amount} - {match.reason}</p>
+                          <p className="font-semibold text-red-600">Fine: ₹{match.amount}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">{match.reason}</p>
                           <p className="text-xs text-gray-400 mt-1">
                             {new Date(match.date).toLocaleString()}
                           </p>
@@ -661,92 +509,42 @@ export default function BadmintonTracker() {
           </div>
         )}
 
-        {/* Stats Tab */}
         {activeTab === 'stats' && (
-          <div className="space-y-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+            <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Your Stats</h2>
             <div className="grid grid-cols-2 gap-4">
-              {/* Aniket Stats */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
-                <h3 className="font-bold text-lg mb-4 text-blue-600">Aniket</h3>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Wins</p>
-                    <p className="text-2xl font-bold">{stats.aniketnayak.wins}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Losses</p>
-                    <p className="text-2xl font-bold">{stats.aniketnayak.losses}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Total Points</p>
-                    <p className="text-xl font-bold">{stats.aniketnayak.totalPoints}</p>
-                  </div>
-                </div>
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-300">Matches Played</p>
+                <p className="text-3xl font-bold text-blue-600">{stats.matches_played}</p>
               </div>
-
-              {/* Sourav Stats */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
-                <h3 className="font-bold text-lg mb-4 text-green-600">Sourav</h3>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Wins</p>
-                    <p className="text-2xl font-bold">{stats.souravssk.wins}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Losses</p>
-                    <p className="text-2xl font-bold">{stats.souravssk.losses}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Total Points</p>
-                    <p className="text-xl font-bold">{stats.souravssk.totalPoints}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
-              <h3 className="font-bold text-lg mb-4">Head to Head</h3>
-              <div className="text-center">
-                <p className="text-4xl font-bold text-gray-800 dark:text-white">
-                  {stats.aniketnayak.wins} - {stats.souravssk.wins}
-                </p>
-                <p className="text-gray-600 dark:text-gray-300 mt-2">Total matches: {stats.aniketnayak.wins + stats.souravssk.wins}</p>
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-300">Wins</p>
+                <p className="text-3xl font-bold text-green-600">{stats.wins}</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* History Tab */}
         {activeTab === 'history' && (
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
-            <h3 className="font-bold text-lg mb-4">Full History</h3>
+            <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Full History</h2>
             {matches.length === 0 ? (
               <p className="text-gray-500 text-center py-8">No history yet</p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {matches.map(match => (
-                  <div key={match.id} className="border-l-4 border-gray-300 dark:border-slate-600 pl-4 py-2 hover:border-blue-500 transition">
+                  <div key={match.id} className={`border rounded-lg p-4 ${match.type === 'match' ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
                     {match.type === 'match' ? (
                       <div>
-                        <p className="font-semibold">
-                          {match.winner === 'aniketnayak' ? '🏆 Aniket' : '🏆 Sourav'} won
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                          Score: {match.scores?.aniketnayak} - {match.scores?.souravssk}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(match.date).toLocaleString()}
-                        </p>
+                        <p className="font-semibold">Match: {match.winner === 'aniketnayak' ? 'Aniket' : 'Sourav'} won</p>
+                        <p className="text-sm">Score: {match.scores_aniket} - {match.scores_sourav}</p>
+                        <p className="text-xs text-gray-500">{new Date(match.date).toLocaleString()}</p>
                       </div>
                     ) : (
                       <div>
-                        <p className="font-semibold">
-                          💰 {match.player && users[match.player as 'aniketnayak' | 'souravssk'].displayName} - Fine
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">₹{match.amount} - {match.reason}</p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(match.date).toLocaleString()}
-                        </p>
+                        <p className="font-semibold">Fine: ₹{match.amount}</p>
+                        <p className="text-sm">{match.reason}</p>
+                        <p className="text-xs text-gray-500">{new Date(match.date).toLocaleString()}</p>
                       </div>
                     )}
                   </div>
@@ -756,39 +554,18 @@ export default function BadmintonTracker() {
           </div>
         )}
 
-        {/* Settlements Tab */}
         {activeTab === 'settlements' && (
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
-            <h3 className="font-bold text-lg mb-4">Settlement History</h3>
+            <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Settlement History</h2>
             {settlements.length === 0 ? (
               <p className="text-gray-500 text-center py-8">No settlements yet</p>
             ) : (
               <div className="space-y-4">
-                {settlements.map(settlement => (
-                  <div key={settlement.id} className="border rounded-lg p-4 bg-green-50 dark:bg-green-900/20">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center">
-                        <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-                        <span className="font-semibold text-green-800">Settlement</span>
-                      </div>
-                      <span className="text-xs text-gray-500">
-                        {new Date(settlement.date).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="space-y-1 text-sm">
-                      <p className="text-gray-700">
-                        <span className="font-medium">{users[settlement.payer as 'aniketnayak' | 'souravssk'].displayName}</span> paid{' '}
-                        <span className="font-medium">{users[settlement.receiver as 'aniketnayak' | 'souravssk'].displayName}</span>
-                      </p>
-                      <p className="text-lg font-bold text-green-600">₹{settlement.balance}</p>
-                      <p className="text-gray-600 dark:text-gray-300">
-                        Transaction ID: <span className="font-mono text-xs">{settlement.transactionId}</span>
-                      </p>
-                      <div className="mt-2 pt-2 border-t text-xs text-gray-500">
-                        <p>Before settlement:</p>
-                        <p>Aniket: ₹{settlement.finesBeforeSettlement.aniketnayak} | Sourav: ₹{settlement.finesBeforeSettlement.souravssk}</p>
-                      </div>
-                    </div>
+                {settlements.map(s => (
+                  <div key={s.id} className="border rounded-lg p-4 bg-green-50 dark:bg-green-900/20">
+                    <p className="font-semibold">{s.payer} → {s.receiver}</p>
+                    <p className="text-lg font-bold text-green-600">₹{s.amount}</p>
+                    <p className="text-xs text-gray-500">TxID: {s.transaction_id}</p>
                   </div>
                 ))}
               </div>
@@ -802,12 +579,12 @@ export default function BadmintonTracker() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-md w-full">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold">Record Match Score</h3>
+              <h3 className="text-xl font-bold">New Match</h3>
               <button onClick={() => setShowNewMatch(false)}>
                 <X className="w-6 h-6 text-gray-500" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Aniket's Score</label>
@@ -815,18 +592,18 @@ export default function BadmintonTracker() {
                   type="number"
                   value={matchScores.aniketnayak}
                   onChange={(e) => setMatchScores({...matchScores, aniketnayak: e.target.value})}
-                  className="w-full border rounded-lg px-4 py-2"
+                  className="w-full border rounded-lg px-4 py-2 dark:bg-slate-700 dark:border-slate-600"
                   placeholder="Enter score"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-2">Sourav's Score</label>
                 <input
                   type="number"
                   value={matchScores.souravssk}
                   onChange={(e) => setMatchScores({...matchScores, souravssk: e.target.value})}
-                  className="w-full border rounded-lg px-4 py-2"
+                  className="w-full border rounded-lg px-4 py-2 dark:bg-slate-700 dark:border-slate-600"
                   placeholder="Enter score"
                 />
               </div>
@@ -852,7 +629,7 @@ export default function BadmintonTracker() {
                 <X className="w-6 h-6 text-gray-500" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Amount (₹)</label>
@@ -864,7 +641,7 @@ export default function BadmintonTracker() {
                   placeholder="10"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-2">Reason</label>
                 <input
@@ -909,7 +686,7 @@ export default function BadmintonTracker() {
                 <X className="w-6 h-6 text-gray-500" />
               </button>
             </div>
-            
+
             {fineBalance === 0 ? (
               <div className="text-center py-6">
                 <p className="text-gray-600 dark:text-gray-300 text-lg">No fines to settle! 🎉</p>
@@ -926,20 +703,17 @@ export default function BadmintonTracker() {
                   <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">Settlement Amount</p>
                   <p className="text-3xl font-bold text-gray-800 dark:text-white">₹{Math.abs(fineBalance)}</p>
                   <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                    {fineBalance > 0 
-                      ? `${currentUser && users[currentUser as 'aniketnayak' | 'souravssk'].displayName} pays ${users[otherUser as 'aniketnayak' | 'souravssk'].displayName}`
-                      : `${users[otherUser as 'aniketnayak' | 'souravssk'].displayName} pays ${currentUser && users[currentUser as 'aniketnayak' | 'souravssk'].displayName}`
-                    }
+                    {fineBalance > 0 ? `You pay ${otherDisplayName}` : `${otherDisplayName} pays you`}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Transaction ID *</label>
+                  <label className="block text-sm font-medium mb-2">Transaction ID</label>
                   <input
                     type="text"
                     value={transactionId}
                     onChange={(e) => setTransactionId(e.target.value)}
-                    className="w-full border rounded-lg px-4 py-2"
+                    className="w-full border rounded-lg px-4 py-2 dark:bg-slate-700 dark:border-slate-600"
                     placeholder="e.g., UPI/123456789"
                   />
                   <p className="text-xs text-gray-500 mt-1">Enter UPI transaction ID or payment reference</p>
@@ -967,114 +741,36 @@ export default function BadmintonTracker() {
                 <X className="w-6 h-6 text-gray-500" />
               </button>
             </div>
-            
-            <div className="mb-6">
+
+            <div className="mb-4">
               <label className="block text-sm font-medium mb-2">Select Month</label>
               <input
                 type="month"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                max={new Date().toISOString().slice(0, 7)}
-                className="w-full border rounded-lg px-4 py-2"
+                className="w-full border rounded-lg px-4 py-2 dark:bg-slate-700 dark:border-slate-600"
               />
             </div>
 
-            {selectedMonth && (() => {
-              const report = getMonthlyReport(selectedMonth);
-              const monthName = new Date(selectedMonth + '-01').toLocaleDateString('en-IN', { 
-                month: 'long', 
-                year: 'numeric' 
-              });
-
-              return (
-                <div className="space-y-6">
-                  <div className="text-center">
-                    <h4 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{monthName}</h4>
-                  </div>
-
-                  {/* Fine Summary */}
-                  <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
-                    <h5 className="font-bold text-lg mb-3 text-red-800">Fine Summary</h5>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">Aniket's Fines</p>
-                        <p className="text-2xl font-bold text-red-600">₹{report.fineData.aniketnayak}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">Sourav's Fines</p>
-                        <p className="text-2xl font-bold text-red-600">₹{report.fineData.souravssk}</p>
-                      </div>
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-red-200 dark:border-red-800">
-                      <p className="text-sm text-gray-700 font-medium">Net Balance:</p>
-                      {report.fineData.aniketnayak === report.fineData.souravssk ? (
-                        <p className="text-lg font-bold text-gray-800 dark:text-white">Settled ✓</p>
-                      ) : report.fineData.aniketnayak > report.fineData.souravssk ? (
-                        <p className="text-lg font-bold text-red-600">
-                          Aniket owes ₹{report.fineData.aniketnayak - report.fineData.souravssk}
-                        </p>
-                      ) : (
-                        <p className="text-lg font-bold text-red-600">
-                          Sourav owes ₹{report.fineData.souravssk - report.fineData.aniketnayak}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Match Summary */}
-                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                    <h5 className="font-bold text-lg mb-3 text-blue-800">Match Summary</h5>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">Aniket</p>
-                        <p className="text-xl font-bold text-blue-600">
-                          {report.matchData.aniketnayak.wins}W - {report.matchData.aniketnayak.losses}L
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">Sourav</p>
-                        <p className="text-xl font-bold text-green-600">
-                          {report.matchData.souravssk.wins}W - {report.matchData.souravssk.losses}L
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Settlements in Month */}
-                  {report.monthSettlements.length > 0 && (
-                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-                      <h5 className="font-bold text-lg mb-3 text-green-800">Settlements</h5>
-                      <div className="space-y-2">
-                        {report.monthSettlements.map(settlement => (
-                          <div key={settlement.id} className="bg-white dark:bg-slate-800 rounded p-3 text-sm">
-                            <p className="font-medium">
-                              {users[settlement.payer as 'aniketnayak' | 'souravssk'].displayName} → {users[settlement.receiver as 'aniketnayak' | 'souravssk'].displayName}: ₹{settlement.balance}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {new Date(settlement.date).toLocaleDateString()} | TXN: {settlement.transactionId}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Activity Count */}
-                  <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4">
-                    <h5 className="font-bold text-lg mb-3">Activity</h5>
-                    <p className="text-gray-700">
-                      Total Events: {report.monthMatches.length} 
-                      ({report.monthMatches.filter(m => m.type === 'match').length} matches, 
-                      {report.monthMatches.filter(m => m.type === 'fine').length} fines)
-                    </p>
-                  </div>
+            {selectedMonth && getMonthlyReport() && (
+              <div className="space-y-4">
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-300">Matches Played</p>
+                  <p className="text-2xl font-bold">{getMonthlyReport()?.totalMatches}</p>
                 </div>
-              );
-            })()}
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-300">Wins</p>
+                  <p className="text-2xl font-bold">{getMonthlyReport()?.wins}</p>
+                </div>
+                <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-300">Fines</p>
+                  <p className="text-2xl font-bold">₹{getMonthlyReport()?.fineAmount}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
     </div>
   );
 }
-
