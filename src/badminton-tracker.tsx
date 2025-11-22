@@ -46,6 +46,9 @@ export default function BadmintonTracker() {
   const [fineDate, setFineDate] = useState('');
   const [transactionId, setTransactionId] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
+  const [remoteApiKey, setRemoteApiKey] = useState('');
+  const [remoteBinId, setRemoteBinId] = useState('');
+  const [remoteMessage, setRemoteMessage] = useState('');
 
   const users: Record<'aniketnayak' | 'souravssk', User> = {
     aniketnayak: { password: 'aniket123', displayName: 'Aniket' },
@@ -128,6 +131,86 @@ export default function BadmintonTracker() {
   };
 
   // (archives can be read directly from localStorage under keys `archive-<year>`)
+
+  // Remote sync helpers (JSONBin v3). Provide your JSONBin API key and an optional bin id.
+  // For personal use across a couple devices storing the API key in localStorage is acceptable.
+  const saveToRemote = async () => {
+    setRemoteMessage('');
+    try {
+      if (!remoteApiKey) throw new Error('Provide JSONBin API key in Remote Sync section');
+
+      const payload = {
+        fines: fines || { aniketnayak: 0, souravssk: 0 },
+        matches: matches || [],
+        settlements: settlements || [],
+        lastRolloverYear: localStorage.getItem('lastRolloverYear') || new Date().getFullYear()
+      };
+
+      if (remoteBinId) {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${remoteBinId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': remoteApiKey
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error(`Update failed: ${res.status}`);
+        setRemoteMessage('Saved to existing remote bin.');
+      } else {
+        const res = await fetch('https://api.jsonbin.io/v3/b', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': remoteApiKey
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error(`Create failed: ${res.status}`);
+        const json = await res.json();
+        const id = json && json.record && (json.record.id || json.record._id || json.id);
+        if (!id) throw new Error('Could not read created bin id');
+        setRemoteBinId(id);
+        localStorage.setItem('remoteBinId', id);
+        localStorage.setItem('remoteApiKey', remoteApiKey);
+        setRemoteMessage(`Created remote bin ${id}`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setRemoteMessage(err?.message || 'Remote save failed');
+    }
+  };
+
+  const loadFromRemote = async () => {
+    setRemoteMessage('');
+    try {
+      if (!remoteApiKey) throw new Error('Provide JSONBin API key in Remote Sync section');
+      if (!remoteBinId) throw new Error('Provide remote bin id in Remote Sync section');
+
+      const res = await fetch(`https://api.jsonbin.io/v3/b/${remoteBinId}/latest`, {
+        method: 'GET',
+        headers: { 'X-Master-Key': remoteApiKey }
+      });
+
+      if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+      const json = await res.json();
+      const data = json && json.record ? json.record : json;
+      if (!data) throw new Error('No data in remote bin');
+
+      if (data.fines) setFines(data.fines);
+      if (data.matches) setMatches(data.matches);
+      if (data.settlements) setSettlements(data.settlements);
+      if (data.lastRolloverYear) localStorage.setItem('lastRolloverYear', data.lastRolloverYear.toString());
+
+      await saveData(data.fines, data.matches, data.settlements);
+      setRemoteMessage('Loaded remote data and saved locally');
+    } catch (err: any) {
+      console.error(err);
+      setRemoteMessage(err?.message || 'Remote load failed');
+    }
+  };
 
   const handleLogin = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -346,6 +429,33 @@ export default function BadmintonTracker() {
                 <option value="aniketnayak">Aniket</option>
                 <option value="souravssk">Sourav</option>
               </select>
+            </div>
+
+            {/* Remote Sync (JSONBin) */}
+            <div className="mt-4 bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
+              <h3 className="font-bold text-lg mb-2 text-gray-800 dark:text-white">Remote Sync (JSONBin)</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">Enter your JSONBin API key and bin id to sync data across devices. Create a free account at <a className="underline" href="https://jsonbin.io" target="_blank" rel="noreferrer">jsonbin.io</a>.</p>
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={remoteApiKey}
+                  onChange={(e) => setRemoteApiKey(e.target.value)}
+                  placeholder="JSONBin API key"
+                  className="w-full border rounded-lg px-3 py-2 dark:bg-slate-700 dark:border-slate-600"
+                />
+                <input
+                  type="text"
+                  value={remoteBinId}
+                  onChange={(e) => setRemoteBinId(e.target.value)}
+                  placeholder="Bin ID (leave empty to create new)"
+                  className="w-full border rounded-lg px-3 py-2 dark:bg-slate-700 dark:border-slate-600"
+                />
+                <div className="flex gap-2">
+                  <button onClick={saveToRemote} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Save to Remote</button>
+                  <button onClick={loadFromRemote} className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">Load from Remote</button>
+                </div>
+                {remoteMessage && <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{remoteMessage}</p>}
+              </div>
             </div>
             
             <div>
