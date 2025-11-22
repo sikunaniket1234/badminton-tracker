@@ -288,7 +288,7 @@ export default function BadmintonTracker() {
             <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
             <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Badminton Tracker</h1>
             <p className="text-gray-600 dark:text-gray-300 mt-2">Track fines & scores</p>
-            <p className="text-gray-600 dark:text-gray-300 mt-2">Track fines & scores</p>
+            
           </div>
           
           <form onSubmit={handleLogin} className="space-y-4">
@@ -320,7 +320,7 @@ export default function BadmintonTracker() {
 
             <button
               type="submit"
-              className="w-full bg-blue-50 dark:bg-blue-900/200 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition duration-200 shadow-lg"
+              className="w-full bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-200 shadow-lg"
             >
               Login
             </button>
@@ -414,7 +414,7 @@ export default function BadmintonTracker() {
                 </h2>
                 <button
                   onClick={() => setShowSettlement(true)}
-                  className="text-sm bg-green-50 dark:bg-green-900/200 hover:bg-green-600 text-white px-3 py-1 rounded-lg"
+                  className="text-sm bg-green-600 dark:bg-green-700 hover:bg-green-700 text-white px-3 py-1 rounded-lg"
                 >
                   Settle
                 </button>
@@ -455,14 +455,14 @@ export default function BadmintonTracker() {
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => setShowNewMatch(true)}
-                className="bg-blue-50 dark:bg-blue-900/200 hover:bg-blue-600 text-white rounded-xl p-6 shadow-md transition flex flex-col items-center"
+                className="bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 text-white rounded-xl p-6 shadow-md transition flex flex-col items-center"
               >
                 <Trophy className="w-8 h-8 mb-2" />
                 <span className="font-semibold">New Match</span>
               </button>
               <button
                 onClick={() => setShowNewFine(true)}
-                className="bg-red-50 dark:bg-red-900/200 hover:bg-red-600 text-white rounded-xl p-6 shadow-md transition flex flex-col items-center"
+                className="bg-red-600 dark:bg-red-700 hover:bg-red-700 text-white rounded-xl p-6 shadow-md transition flex flex-col items-center"
               >
                 <IndianRupee className="w-8 h-8 mb-2" />
                 <span className="font-semibold">Add Fine</span>
@@ -681,7 +681,7 @@ export default function BadmintonTracker() {
 
               <button
                 onClick={addMatch}
-                className="w-full bg-blue-50 dark:bg-blue-900/200 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition"
+                className="w-full bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition"
               >
                 Save Match
               </button>
@@ -738,7 +738,7 @@ export default function BadmintonTracker() {
 
               <button
                 onClick={addFine}
-                className="w-full bg-red-50 dark:bg-red-900/200 hover:bg-red-600 text-white font-semibold py-3 rounded-lg transition"
+                className="w-full bg-red-600 dark:bg-red-700 hover:bg-red-700 text-white font-semibold py-3 rounded-lg transition"
               >
                 Add Fine to My Account
               </button>
@@ -763,7 +763,7 @@ export default function BadmintonTracker() {
                 <p className="text-gray-600 dark:text-gray-300 text-lg">No fines to settle! 🎉</p>
                 <button
                   onClick={() => setShowSettlement(false)}
-                  className="mt-4 bg-gray-50 dark:bg-slate-7000 hover:bg-gray-600 text-white px-6 py-2 rounded-lg"
+                  className="mt-4 bg-gray-600 dark:bg-slate-700 hover:bg-gray-700 text-white px-6 py-2 rounded-lg"
                 >
                   Close
                 </button>
@@ -795,7 +795,7 @@ export default function BadmintonTracker() {
 
                 <button
                   onClick={handleSettlement}
-                  className="w-full bg-green-50 dark:bg-green-900/200 hover:bg-green-600 text-white font-semibold py-3 rounded-lg transition"
+                  className="w-full bg-green-600 dark:bg-green-700 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition"
                 >
                   Confirm Settlement
                 </button>
