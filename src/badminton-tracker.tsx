@@ -43,6 +43,7 @@ export default function BadmintonTracker() {
   const [matchScores, setMatchScores] = useState({ aniketnayak: '', souravssk: '' });
   const [fineAmount, setFineAmount] = useState('10');
   const [fineReason, setFineReason] = useState('');
+  const [fineDate, setFineDate] = useState('');
   const [transactionId, setTransactionId] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
 
@@ -108,6 +109,18 @@ export default function BadmintonTracker() {
       return;
     }
 
+    // Validate that date is within 7 days
+    const selectedDate = fineDate ? new Date(fineDate) : new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    const daysBack = Math.floor((today.getTime() - selectedDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysBack < 0 || daysBack > 7) {
+      alert('Fine date must be within the last 7 days');
+      return;
+    }
+
     const newFines = { ...fines };
     newFines[currentUser as 'aniketnayak' | 'souravssk'] += parseInt(fineAmount);
     
@@ -117,7 +130,7 @@ export default function BadmintonTracker() {
       player: currentUser,
       amount: parseInt(fineAmount),
       reason: fineReason,
-      date: new Date().toISOString()
+      date: new Date(selectedDate).toISOString()
     };
     
     const newMatches = [newMatch, ...matches];
@@ -129,6 +142,7 @@ export default function BadmintonTracker() {
     setShowNewFine(false);
     setFineAmount('10');
     setFineReason('');
+    setFineDate('');
   };
 
   const addMatch = async () => {
@@ -682,7 +696,7 @@ export default function BadmintonTracker() {
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-md w-full">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">Add Fine</h3>
-              <button onClick={() => setShowNewFine(false)}>
+              <button onClick={() => { setShowNewFine(false); setFineDate(''); }}>
                 <X className="w-6 h-6 text-gray-500" />
               </button>
             </div>
@@ -694,7 +708,7 @@ export default function BadmintonTracker() {
                   type="number"
                   value={fineAmount}
                   onChange={(e) => setFineAmount(e.target.value)}
-                  className="w-full border rounded-lg px-4 py-2"
+                  className="w-full border rounded-lg px-4 py-2 dark:bg-slate-700 dark:border-slate-600"
                   placeholder="10"
                 />
               </div>
@@ -705,8 +719,20 @@ export default function BadmintonTracker() {
                   type="text"
                   value={fineReason}
                   onChange={(e) => setFineReason(e.target.value)}
-                  className="w-full border rounded-lg px-4 py-2"
+                  className="w-full border rounded-lg px-4 py-2 dark:bg-slate-700 dark:border-slate-600"
                   placeholder="e.g., Cancelled session"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Date (up to 7 days back)</label>
+                <input
+                  type="date"
+                  value={fineDate}
+                  onChange={(e) => setFineDate(e.target.value)}
+                  max={new Date().toISOString().split('T')[0]}
+                  min={new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                  className="w-full border rounded-lg px-4 py-2 dark:bg-slate-700 dark:border-slate-600"
                 />
               </div>
 
