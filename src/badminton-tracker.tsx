@@ -170,7 +170,6 @@ export default function BadmintonTracker() {
       }
 
       const newFineAmount = parseInt(fineAmount);
-      const currentFineAmount = fines[userIdToUsername[currentUser.id]] || 0;
 
       // Insert match record (fine)
       const { error: matchError } = await supabase.from('matches').insert({
@@ -184,7 +183,16 @@ export default function BadmintonTracker() {
 
       if (matchError) throw matchError;
 
-      // Update user fines
+      // Get current fine amount from DB (fresh read)
+      const { data: currentFineData } = await supabase
+        .from('user_fines')
+        .select('amount')
+        .eq('user_id', currentUser.id)
+        .single();
+
+      const currentFineAmount = currentFineData?.amount || 0;
+
+      // Update user fines with fresh value
       const { error: fineError } = await supabase
         .from('user_fines')
         .update({ amount: currentFineAmount + newFineAmount })
@@ -192,7 +200,7 @@ export default function BadmintonTracker() {
 
       if (fineError) throw fineError;
 
-      // Reload data
+      // Reload all data (matches, fines, settlements)
       await loadUserData(currentUser.id);
 
       setShowNewFine(false);
@@ -246,9 +254,15 @@ export default function BadmintonTracker() {
 
     try {
       const otherUsername = userIdToUsername[currentUser.id] === 'aniketnayak' ? 'souravssk' : 'aniketnayak';
-      const fineBalance = fines[userIdToUsername[currentUser.id]] - fines[otherUsername];
+      const otherUserId = userIdToUsername[currentUser.id] === 'aniketnayak' ? 'ee3029d3-c8e1-4099-b3ca-1c29d45890bb' : 'e79194c8-cd07-4ded-b30c-63859a80ea28';
+      const fineBalance = (fines[userIdToUsername[currentUser.id]] || 0) - (fines[otherUsername] || 0);
 
-      // Insert settlement
+      if (fineBalance === 0) {
+        alert('No fines to settle');
+        return;
+      }
+
+      // Insert settlement record
       const { error: settlementError } = await supabase.from('settlements').insert({
         user_id: currentUser.id,
         payer: fineBalance > 0 ? userIdToUsername[currentUser.id] : otherUsername,
@@ -261,15 +275,18 @@ export default function BadmintonTracker() {
       if (settlementError) throw settlementError;
 
       // Reset both users' fines to 0
-      const otherUserId = userIdToUsername[currentUser.id] === 'aniketnayak' ? 'ee3029d3-c8e1-4099-b3ca-1c29d45890bb' : 'e79194c8-cd07-4ded-b30c-63859a80ea28';
-      
-      await supabase.from('user_fines').update({ amount: 0 }).eq('user_id', currentUser.id);
-      await supabase.from('user_fines').update({ amount: 0 }).eq('user_id', otherUserId);
+      const resetErr1 = await supabase.from('user_fines').update({ amount: 0 }).eq('user_id', currentUser.id);
+      const resetErr2 = await supabase.from('user_fines').update({ amount: 0 }).eq('user_id', otherUserId);
 
+      if (resetErr1.error) throw resetErr1.error;
+      if (resetErr2.error) throw resetErr2.error;
+
+      // Reload all data
       await loadUserData(currentUser.id);
 
       setShowSettlement(false);
       setTransactionId('');
+      alert('Settlement recorded successfully! Fines reset to ₹0.');
     } catch (err) {
       console.error('Error settling:', err);
       alert('Failed to settle fines');
