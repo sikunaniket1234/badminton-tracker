@@ -29,7 +29,8 @@ export default function BadmintonTracker() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  const [fines, setFines] = useState<Record<string, number>>({ aniketnayak: 0, souravssk: 0 });
+  //const [fines, setFines] = useState<Record<string, number>>({ aniketnayak: 0, souravssk: 0 });
+  const [fines, setFines] = useState<Record<string, number>>({});
   const [matches, setMatches] = useState<Match[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [activeTab, setActiveTab] = useState('home');
@@ -84,31 +85,40 @@ export default function BadmintonTracker() {
   //   return () => subscription?.unsubscribe();
   // }, []);
     useEffect(() => {
-      const checkUser = async () => {
-        const { data } = await supabase.auth.getSession();
-        if (data?.session?.user) {
-          setCurrentUser(data.session.user);
-          await loadUserData(data.session.user.id);
-        }
-      };
-      checkUser();
+  const checkUser = async () => {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      console.error('getSession error:', error);
+      return;
+    }
+    if (data?.session?.user) {
+      console.log('Initial session user:', data.session.user.id);
+      setCurrentUser(data.session.user);
+      await loadUserData(data.session.user.id);
+    } else {
+      console.log('No initial session');
+    }
+  };
+  checkUser();
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (_event, session) => {
-          if (session?.user) {
-            setCurrentUser(session.user);
-            await loadUserData(session.user.id);
-          } else {
-            setCurrentUser(null);
-            setMatches([]);
-            setSettlements([]);
-            setFines({ aniketnayak: 0, souravssk: 0 });
-          }
-        }
-      );
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    async (event, session) => {
+      console.log('Auth state change:', event, session?.user?.id);
+      if (session?.user) {
+        setCurrentUser(session.user);
+        await loadUserData(session.user.id);
+      } else {
+        setCurrentUser(null);
+        setMatches([]);
+        setSettlements([]);
+        setFines({});
+        setActiveTab('home');
+      }
+    }
+  );
 
-      return () => subscription?.unsubscribe();
-    }, []);
+  return () => subscription?.unsubscribe();
+}, []);
 
 
   // const loadUserData = async (userId: string) => {
@@ -202,7 +212,7 @@ export default function BadmintonTracker() {
     if (settlementsError) throw settlementsError;
     setSettlements(settlementsData || []);
 
-    // 🔹 Load fines
+    // Load fines for all users
     const { data: allFines, error: finesError } = await supabase
       .from('user_fines')
       .select('user_id, amount');
@@ -210,34 +220,25 @@ export default function BadmintonTracker() {
     if (finesError) {
       console.error('Error loading fines:', finesError);
     } else if (allFines) {
-      // Always start with both users present at 0
-      const finesByUser: Record<string, number> = {
-        aniketnayak: 0,
-        souravssk: 0,
-      };
+      const finesByUserId: Record<string, number> = {};
 
       allFines.forEach((f: any) => {
-        const username = userIdToUsername[f.user_id];
-        if (!username) {
-          console.warn('Unknown user_id in user_fines:', f.user_id);
-          return;
-        }
-
         const amount =
           typeof f.amount === 'string'
             ? parseInt(f.amount, 10)
             : (f.amount ?? 0);
 
-        finesByUser[username] = amount;
+        finesByUserId[f.user_id] = amount;
       });
 
-      console.log('Fines from DB → state:', finesByUser);
-      setFines(finesByUser);
+      console.log('Fines by user_id → state:', finesByUserId);
+      setFines(finesByUserId);
     }
   } catch (err) {
     console.error('Error loading user data:', err);
   }
 };
+
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -457,9 +458,22 @@ export default function BadmintonTracker() {
     }
 
     try {
-      const otherUsername = userIdToUsername[currentUser.id] === 'aniketnayak' ? 'souravssk' : 'aniketnayak';
-      const otherUserId = userIdToUsername[currentUser.id] === 'aniketnayak' ? 'ee3029d3-c8e1-4099-b3ca-1c29d45890bb' : 'e79194c8-cd07-4ded-b30c-63859a80ea28';
-      const fineBalance = (fines[userIdToUsername[currentUser.id]] || 0) - (fines[otherUsername] || 0);
+      // const otherUsername = userIdToUsername[currentUser.id] === 'aniketnayak' ? 'souravssk' : 'aniketnayak';
+      // const otherUserId = userIdToUsername[currentUser.id] === 'aniketnayak' ? 'ee3029d3-c8e1-4099-b3ca-1c29d45890bb' : 'e79194c8-cd07-4ded-b30c-63859a80ea28';
+      // const fineBalance = (fines[userIdToUsername[currentUser.id]] || 0) - (fines[otherUsername] || 0);
+      const myUserId = currentUser.id;
+      const myUsername = userIdToUsername[myUserId];
+      const otherUserId =
+        myUsername === 'aniketnayak'
+          ? 'ee3029d3-c8e1-4099-b3ca-1c29d45890bb'
+          : 'e79194c8-cd07-4ded-b30c-63859a80ea28';
+
+      const otherUsername = userIdToUsername[otherUserId];
+
+      const myFine = fines[myUserId] ?? 0;
+      const otherFine = fines[otherUserId] ?? 0;
+      const fineBalance = myFine - otherFine;
+
 
       if (fineBalance === 0) {
         alert('No fines to settle');
@@ -591,10 +605,29 @@ export default function BadmintonTracker() {
     );
   }
 
+  // const stats = getStats();
+  // const otherUser = userIdToUsername[currentUser.id] === 'aniketnayak' ? 'souravssk' : 'aniketnayak';
+  // const otherDisplayName = otherUser === 'aniketnayak' ? 'Aniket' : 'Sourav';
+  // const fineBalance = (fines[userIdToUsername[currentUser.id]] || 0) - (fines[otherUser] || 0);
   const stats = getStats();
-  const otherUser = userIdToUsername[currentUser.id] === 'aniketnayak' ? 'souravssk' : 'aniketnayak';
-  const otherDisplayName = otherUser === 'aniketnayak' ? 'Aniket' : 'Sourav';
-  const fineBalance = (fines[userIdToUsername[currentUser.id]] || 0) - (fines[otherUser] || 0);
+
+const myUserId = currentUser.id;
+const myUsername = userIdToUsername[myUserId];
+
+// Figure out the other user's id
+const otherUserId =
+  myUsername === 'aniketnayak'
+    ? 'ee3029d3-c8e1-4099-b3ca-1c29d45890bb'
+    : 'e79194c8-cd07-4ded-b30c-63859a80ea28';
+
+const otherDisplayName = userIdToDisplayName[otherUserId];
+
+// Read fines by user_id
+const myFine = fines[myUserId] ?? 0;
+const otherFine = fines[otherUserId] ?? 0;
+
+const fineBalance = myFine - otherFine;
+
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-slate-900">
@@ -671,8 +704,10 @@ export default function BadmintonTracker() {
               </div>
 
               <div className="mt-4 pt-4 border-t flex justify-between text-sm text-gray-600 dark:text-gray-300">
-                <div>Your fines: ₹{fines[userIdToUsername[currentUser.id]] || 0}</div>
-                <div>{otherDisplayName}'s fines: ₹{fines[otherUser] || 0}</div>
+                {/* <div>Your fines: ₹{fines[userIdToUsername[currentUser.id]] || 0}</div>
+                <div>{otherDisplayName}'s fines: ₹{fines[otherUser] || 0}</div> */}
+                <div>Your fines: ₹{myFine}</div>
+                <div>{otherDisplayName}'s fines: ₹{otherFine}</div>
               </div>
             </div>
 
