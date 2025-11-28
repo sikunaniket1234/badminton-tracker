@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useRef } from 'react';
 import { Trophy, IndianRupee, X, Users, History, Calendar, CheckCircle, LogOut } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -58,6 +58,8 @@ export default function BadmintonTracker() {
     'ee3029d3-c8e1-4099-b3ca-1c29d45890bb': 'Sourav'
   };
 
+  const hasBooted = useRef(false);
+
   // Check if user is already logged in
   // useEffect(() => {
   //   const checkUser = async () => {
@@ -85,25 +87,31 @@ export default function BadmintonTracker() {
   //   return () => subscription?.unsubscribe();
   // }, []);
     useEffect(() => {
-  const checkUser = async () => {
+  const init = async () => {
     const { data, error } = await supabase.auth.getSession();
     if (error) {
       console.error('getSession error:', error);
       return;
     }
+
     if (data?.session?.user) {
-      console.log('Initial session user:', data.session.user.id);
+      console.log('Initial session:', data.session.user.id);
       setCurrentUser(data.session.user);
       await loadUserData(data.session.user.id);
-    } else {
-      console.log('No initial session');
     }
+
+    hasBooted.current = true;
   };
-  checkUser();
+
+  init();
 
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
     async (event, session) => {
-      console.log('Auth state change:', event, session?.user?.id);
+      console.log('Auth change:', event, session?.user?.id);
+
+      // 🔥 ignore initial fake auth event on boot
+      if (!hasBooted.current) return;
+
       if (session?.user) {
         setCurrentUser(session.user);
         await loadUserData(session.user.id);
@@ -119,6 +127,7 @@ export default function BadmintonTracker() {
 
   return () => subscription?.unsubscribe();
 }, []);
+
 
 
   // const loadUserData = async (userId: string) => {
