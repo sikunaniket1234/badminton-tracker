@@ -1,0 +1,1 @@
+INSERT INTO "public"."profiles" ("id", "username", "display_name", "created_at") VALUES ('e79194c8-cd07-4ded-b30c-63859a80ea28', 'aniketnayak', 'Aniket', '2025-11-22 08:29:40.381587'), ('ee3029d3-c8e1-4099-b3ca-1c29d45890bb', 'souravssk', 'Sourav', '2025-11-22 08:29:40.381587');

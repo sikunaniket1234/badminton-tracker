@@ -1,0 +1,1 @@
+INSERT INTO "public"."user_fines" ("id", "user_id", "amount", "updated_at") VALUES ('67dc5403-96a3-4b94-9fe2-4b9f419351ee', 'ee3029d3-c8e1-4099-b3ca-1c29d45890bb', '20', '2025-11-22 08:42:41.172082'), ('9968fc89-153c-420a-9d8d-f99bf0583ebc', 'e79194c8-cd07-4ded-b30c-63859a80ea28', '10', '2025-11-22 08:42:41.172082');

@@ -107,19 +107,49 @@ export default function BadmintonTracker() {
       setSettlements(settlementsData || []);
 
       // Load fines from user_fines table
-      const { data: allFines, error: finesError } = await supabase
-        .from('user_fines')
-        .select('*');
+    //   const { data: allFines, error: finesError } = await supabase
+    //     .from('user_fines')
+    //     .select('*');
 
-      if (!finesError && allFines) {
-        const finesByUser: Record<string, number> = {};
-        allFines.forEach(f => {
-          const username = userIdToUsername[f.user_id] || f.user_id;
-          finesByUser[username] = f.amount || 0;
-        });
-        setFines(finesByUser);
-      }
-    } catch (err) {
+    //   if (!finesError && allFines) {
+    //     const finesByUser: Record<string, number> = {};
+    //     allFines.forEach(f => {
+    //       const username = userIdToUsername[f.user_id] || f.user_id;
+    //       finesByUser[username] = f.amount || 0;
+    //     });
+    //     setFines(finesByUser);
+    //   }
+    // } 
+    // Load fines
+    const { data: allFines, error: finesError } = await supabase
+      .from('user_fines')
+      .select('user_id, amount');
+
+    if (finesError) {
+      console.error('Error loading fines:', finesError);
+    } else if (allFines) {
+      // Always start with both users present at 0
+      const finesByUser: Record<string, number> = {
+        aniketnayak: 0,
+        souravssk: 0,
+      };
+
+      allFines.forEach((f: any) => {
+        const username = userIdToUsername[f.user_id];
+        if (!username) {
+          console.warn('Unknown user_id in user_fines:', f.user_id);
+          return;
+        }
+        // Coerce to number just in case it comes as string
+        const amount = typeof f.amount === 'string' ? parseInt(f.amount, 10) : (f.amount ?? 0);
+        finesByUser[username] = amount;
+      });
+
+      console.log('Fines from DB → state:', finesByUser);
+      setFines(finesByUser);
+    }
+  }
+    catch (err) {
       console.error('Error loading user data:', err);
     }
   };
@@ -146,10 +176,31 @@ export default function BadmintonTracker() {
     }
   };
 
+  // const handleLogout = async () => {
+  //   await supabase.auth.signOut();
+  //   setCurrentUser(null);
+  // };
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+  try {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      console.error('Logout error:', error);
+      alert('Logout failed. Check console for details.');
+      return;
+    }
+
+    // UI will also be cleared by onAuthStateChange, but this is safe:
     setCurrentUser(null);
-  };
+    setMatches([]);
+    setSettlements([]);
+    setFines({ aniketnayak: 0, souravssk: 0 });
+    setActiveTab('home');
+  } catch (err) {
+    console.error('Unexpected logout error:', err);
+  }
+};
+
 
   const addFine = async () => {
     if (!fineAmount || !fineReason || !currentUser) {
@@ -185,24 +236,49 @@ export default function BadmintonTracker() {
       if (matchError) throw matchError;
 
       // Get current fine amount from DB (fresh read)
-      const { data: currentFineData } = await supabase
+      // const { data: currentFineData } = await supabase
+      //   .from('user_fines')
+      //   .select('amount')
+      //   .eq('user_id', currentUser.id)
+      //   .single();
+
+      // const currentFineAmount = currentFineData?.amount || 0;
+
+      // // Update user fines with fresh value
+      // const { error: fineError } = await supabase
+      //   .from('user_fines')
+      //   .update({ amount: currentFineAmount + newFineAmount })
+      //   .eq('user_id', currentUser.id);
+
+      // if (fineError) throw fineError;
+      // Get current fine amount (if row exists)
+      const { data: currentFineData, error: fineSelectError } = await supabase
         .from('user_fines')
         .select('amount')
         .eq('user_id', currentUser.id)
-        .single();
+        .maybeSingle();  // 👈 important
 
-      const currentFineAmount = currentFineData?.amount || 0;
+      if (fineSelectError) {
+        console.error('Error fetching current fine amount:', fineSelectError);
+      }
 
-      // Update user fines with fresh value
+      const currentFineAmount = currentFineData?.amount
+        ? parseInt(currentFineData.amount as any, 10)
+        : 0;
+
+      // Upsert so row is created if missing
       const { error: fineError } = await supabase
         .from('user_fines')
-        .update({ amount: currentFineAmount + newFineAmount })
-        .eq('user_id', currentUser.id);
+        .upsert({
+          user_id: currentUser.id,
+          amount: currentFineAmount + newFineAmount,
+        });
 
       if (fineError) throw fineError;
 
       // Reload all data (matches, fines, settlements)
-      await loadUserData(currentUser.id);
+      // await loadUserData(currentUser.id);
+        await loadUserData(currentUser.id);
 
       setShowNewFine(false);
       setFineAmount('10');
@@ -316,11 +392,24 @@ export default function BadmintonTracker() {
       if (settlementError) throw settlementError;
 
       // Reset both users' fines to 0
-      const resetErr1 = await supabase.from('user_fines').update({ amount: 0 }).eq('user_id', currentUser.id);
-      const resetErr2 = await supabase.from('user_fines').update({ amount: 0 }).eq('user_id', otherUserId);
+      // const resetErr1 = await supabase.from('user_fines').update({ amount: 0 }).eq('user_id', currentUser.id);
+      // const resetErr2 = await supabase.from('user_fines').update({ amount: 0 }).eq('user_id', otherUserId);
 
-      if (resetErr1.error) throw resetErr1.error;
-      if (resetErr2.error) throw resetErr2.error;
+      // if (resetErr1.error) throw resetErr1.error;
+      // if (resetErr2.error) throw resetErr2.error;
+      const { error: resetError1 } = await supabase
+        .from('user_fines')
+        .update({ amount: 0 })
+        .eq('user_id', currentUser.id);
+
+      const { error: resetError2 } = await supabase
+        .from('user_fines')
+        .update({ amount: 0 })
+        .eq('user_id', otherUserId);
+
+      if (resetError1) throw resetError1;
+      if (resetError2) throw resetError2;
+
 
       // Reload all data
       await loadUserData(currentUser.id);
