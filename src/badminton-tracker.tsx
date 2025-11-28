@@ -58,69 +58,151 @@ export default function BadmintonTracker() {
   };
 
   // Check if user is already logged in
-  useEffect(() => {
-    const checkUser = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data?.session?.user) {
-        setCurrentUser(data.session.user);
-        await loadUserData(data.session.user.id);
-      }
-    };
-    checkUser();
+  // useEffect(() => {
+  //   const checkUser = async () => {
+  //     const { data } = await supabase.auth.getSession();
+  //     if (data?.session?.user) {
+  //       setCurrentUser(data.session.user);
+  //       await loadUserData(data.session.user.id);
+  //     }
+  //   };
+  //   checkUser();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        setCurrentUser(session.user);
-        await loadUserData(session.user.id);
-      } else {
-        setCurrentUser(null);
-        setMatches([]);
-        setSettlements([]);
-        setFines({ aniketnayak: 0, souravssk: 0 });
-      }
-    });
+  //   // Listen for auth changes
+  //   const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+  //     if (session?.user) {
+  //       setCurrentUser(session.user);
+  //       await loadUserData(session.user.id);
+  //     } else {
+  //       setCurrentUser(null);
+  //       setMatches([]);
+  //       setSettlements([]);
+  //       setFines({ aniketnayak: 0, souravssk: 0 });
+  //     }
+  //   });
 
-    return () => subscription?.unsubscribe();
-  }, []);
+  //   return () => subscription?.unsubscribe();
+  // }, []);
+    useEffect(() => {
+      const checkUser = async () => {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session?.user) {
+          setCurrentUser(data.session.user);
+          await loadUserData(data.session.user.id);
+        }
+      };
+      checkUser();
 
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (_event, session) => {
+          if (session?.user) {
+            setCurrentUser(session.user);
+            await loadUserData(session.user.id);
+          } else {
+            setCurrentUser(null);
+            setMatches([]);
+            setSettlements([]);
+            setFines({ aniketnayak: 0, souravssk: 0 });
+          }
+        }
+      );
+
+      return () => subscription?.unsubscribe();
+    }, []);
+
+
+  // const loadUserData = async (userId: string) => {
+  //   try {
+  //     // Load matches
+  //     const { data: matchesData, error: matchesError } = await supabase
+  //       .from('matches')
+  //       .select('*')
+  //       .eq('user_id', userId)
+  //       .order('date', { ascending: false });
+
+  //     if (matchesError) throw matchesError;
+  //     setMatches(matchesData || []);
+
+  //     // Load settlements
+  //     const { data: settlementsData, error: settlementsError } = await supabase
+  //       .from('settlements')
+  //       .select('*')
+  //       .eq('user_id', userId)
+  //       .order('created_at', { ascending: false });
+
+  //     if (settlementsError) throw settlementsError;
+  //     setSettlements(settlementsData || []);
+
+  //     // Load fines from user_fines table
+  //   //   const { data: allFines, error: finesError } = await supabase
+  //   //     .from('user_fines')
+  //   //     .select('*');
+
+  //   //   if (!finesError && allFines) {
+  //   //     const finesByUser: Record<string, number> = {};
+  //   //     allFines.forEach(f => {
+  //   //       const username = userIdToUsername[f.user_id] || f.user_id;
+  //   //       finesByUser[username] = f.amount || 0;
+  //   //     });
+  //   //     setFines(finesByUser);
+  //   //   }
+  //   // } 
+  //   // Load fines
+  //   const { data: allFines, error: finesError } = await supabase
+  //     .from('user_fines')
+  //     .select('user_id, amount');
+
+  //   if (finesError) {
+  //     console.error('Error loading fines:', finesError);
+  //   } else if (allFines) {
+  //     // Always start with both users present at 0
+  //     const finesByUser: Record<string, number> = {
+  //       aniketnayak: 0,
+  //       souravssk: 0,
+  //     };
+
+  //     allFines.forEach((f: any) => {
+  //       const username = userIdToUsername[f.user_id];
+  //       if (!username) {
+  //         console.warn('Unknown user_id in user_fines:', f.user_id);
+  //         return;
+  //       }
+  //       // Coerce to number just in case it comes as string
+  //       const amount = typeof f.amount === 'string' ? parseInt(f.amount, 10) : (f.amount ?? 0);
+  //       finesByUser[username] = amount;
+  //     });
+
+  //     console.log('Fines from DB → state:', finesByUser);
+  //     setFines(finesByUser);
+  //   }
+  // }
+  //   catch (err) {
+  //     console.error('Error loading user data:', err);
+  //   }
+  // };
   const loadUserData = async (userId: string) => {
-    try {
-      // Load matches
-      const { data: matchesData, error: matchesError } = await supabase
-        .from('matches')
-        .select('*')
-        .eq('user_id', userId)
-        .order('date', { ascending: false });
+  try {
+    // Load matches
+    const { data: matchesData, error: matchesError } = await supabase
+      .from('matches')
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: false });
 
-      if (matchesError) throw matchesError;
-      setMatches(matchesData || []);
+    if (matchesError) throw matchesError;
+    setMatches(matchesData || []);
 
-      // Load settlements
-      const { data: settlementsData, error: settlementsError } = await supabase
-        .from('settlements')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+    // Load settlements
+    const { data: settlementsData, error: settlementsError } = await supabase
+      .from('settlements')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
 
-      if (settlementsError) throw settlementsError;
-      setSettlements(settlementsData || []);
+    if (settlementsError) throw settlementsError;
+    setSettlements(settlementsData || []);
 
-      // Load fines from user_fines table
-    //   const { data: allFines, error: finesError } = await supabase
-    //     .from('user_fines')
-    //     .select('*');
-
-    //   if (!finesError && allFines) {
-    //     const finesByUser: Record<string, number> = {};
-    //     allFines.forEach(f => {
-    //       const username = userIdToUsername[f.user_id] || f.user_id;
-    //       finesByUser[username] = f.amount || 0;
-    //     });
-    //     setFines(finesByUser);
-    //   }
-    // } 
-    // Load fines
+    // 🔹 Load fines
     const { data: allFines, error: finesError } = await supabase
       .from('user_fines')
       .select('user_id, amount');
@@ -140,19 +222,22 @@ export default function BadmintonTracker() {
           console.warn('Unknown user_id in user_fines:', f.user_id);
           return;
         }
-        // Coerce to number just in case it comes as string
-        const amount = typeof f.amount === 'string' ? parseInt(f.amount, 10) : (f.amount ?? 0);
+
+        const amount =
+          typeof f.amount === 'string'
+            ? parseInt(f.amount, 10)
+            : (f.amount ?? 0);
+
         finesByUser[username] = amount;
       });
 
       console.log('Fines from DB → state:', finesByUser);
       setFines(finesByUser);
     }
+  } catch (err) {
+    console.error('Error loading user data:', err);
   }
-    catch (err) {
-      console.error('Error loading user data:', err);
-    }
-  };
+};
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -253,32 +338,34 @@ export default function BadmintonTracker() {
       // if (fineError) throw fineError;
       // Get current fine amount (if row exists)
       const { data: currentFineData, error: fineSelectError } = await supabase
-        .from('user_fines')
-        .select('amount')
-        .eq('user_id', currentUser.id)
-        .maybeSingle();  // 👈 important
+          .from('user_fines')
+          .select('amount')
+          .eq('user_id', currentUser.id)
+          .maybeSingle();
 
-      if (fineSelectError) {
-        console.error('Error fetching current fine amount:', fineSelectError);
-      }
+        if (fineSelectError) {
+          console.error('Error fetching current fine amount:', fineSelectError);
+        }
 
-      const currentFineAmount = currentFineData?.amount
-        ? parseInt(currentFineData.amount as any, 10)
-        : 0;
+        const currentFineAmount = currentFineData?.amount
+          ? parseInt(currentFineData.amount as any, 10)
+          : 0;
 
-      // Upsert so row is created if missing
-      const { error: fineError } = await supabase
-        .from('user_fines')
-        .upsert({
-          user_id: currentUser.id,
-          amount: currentFineAmount + newFineAmount,
-        });
+        const { error: fineError } = await supabase
+          .from('user_fines')
+          .upsert({
+            user_id: currentUser.id,
+            amount: currentFineAmount + newFineAmount,
+          });
 
-      if (fineError) throw fineError;
+        if (fineError) throw fineError;
+
+        await loadUserData(currentUser.id);
+
 
       // Reload all data (matches, fines, settlements)
       // await loadUserData(currentUser.id);
-        await loadUserData(currentUser.id);
+       
 
       setShowNewFine(false);
       setFineAmount('10');
